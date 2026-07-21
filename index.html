@@ -253,7 +253,8 @@
   function brakingDistFt(mph){ return (mph*mph) / (30 * FRICTION); }
   function totalStopFt(mph){ return reactionDistFt(mph) + brakingDistFt(mph); }
   function worldScrollRateFtPerSec(mph){
-    var speedFactor = 1 + (mph / MAX_SPEED) * 0.8;
+    var normalized = mph / MAX_SPEED;
+    var speedFactor = 1 + Math.pow(normalized, 1.3) * 4.2;
     return mph * MPH_TO_FTPS * speedFactor;
   }
 
