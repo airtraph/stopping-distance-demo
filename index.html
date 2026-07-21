@@ -252,6 +252,10 @@
   function reactionDistFt(mph){ return MPH_TO_FTPS * mph * REACTION_TIME; }
   function brakingDistFt(mph){ return (mph*mph) / (30 * FRICTION); }
   function totalStopFt(mph){ return reactionDistFt(mph) + brakingDistFt(mph); }
+  function worldScrollRateFtPerSec(mph){
+    var speedFactor = 1 + (mph / MAX_SPEED) * 0.8;
+    return mph * MPH_TO_FTPS * speedFactor;
+  }
 
   // ---------- dom ----------
   var stage = document.getElementById('stage');
@@ -451,7 +455,7 @@
     if (st.speed < 0) st.speed = 0;
     if (st.speed > MAX_SPEED) st.speed = MAX_SPEED;
 
-    var ftThisFrame = st.speed * MPH_TO_FTPS * dt;
+    var ftThisFrame = worldScrollRateFtPerSec(st.speed) * dt;
     st.worldScroll += ftThisFrame * PX_PER_FT;
 
     // score trickle by distance
