@@ -211,7 +211,7 @@
     <div class="dashRow1">
       <div id="limitSign">
         <div class="lbl1">Speed</div>
-        <div class="lval" id="limitVal">25</div>
+        <div class="lval" id="limitVal">60</div>
         <div class="lbl2">Limit</div>
       </div>
       <div id="speedo">
@@ -241,11 +241,11 @@
   var REACTION_TIME = 1.5;      // seconds, average perception-reaction time
   var FRICTION = 0.7;           // dry pavement friction coefficient
   var G = 32.2;                 // ft/s^2
-  var BRAKE_DECEL_FTPS2 = G * FRICTION;
-  var BRAKE_DECEL_MPHPS = BRAKE_DECEL_FTPS2 / MPH_TO_FTPS;  // ~15.3 mph/s
+  var BRAKE_DECEL_FTPS2 = G * FRICTION * 1.45;
+  var BRAKE_DECEL_MPHPS = BRAKE_DECEL_FTPS2 / MPH_TO_FTPS;  // ~22.2 mph/s
   var ACCEL_MPHPS = 11;
   var COAST_MPHPS = 4.2;
-  var MAX_SPEED = 72;
+  var MAX_SPEED = 95;
   var STOP_EPS = 0.6;            // mph considered "stopped"
   var PX_PER_FT = 1;             // world scale: 1 ft == 1 world px
 
@@ -299,7 +299,7 @@
   function freshState(){
     return {
       running:false, over:false,
-      speed:0, limit:25,
+      speed:0, limit:60,
       worldScroll:0,
       score:0, lives:3,
       gas:false, brake:false,
@@ -342,12 +342,9 @@
   }
 
   function spawnLimitSign(st){
-    var options = [25,35,45,55];
-    var choices = options.filter(function(v){ return v !== st.limit; });
-    var newLimit = choices[Math.floor(Math.random()*choices.length)];
     st.limitSigns.push({
       worldY: st.worldScroll + 300 + Math.random()*200,
-      value:newLimit,
+      value:60,
       applied:false
     });
   }
@@ -522,6 +519,7 @@
         else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
         else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
         showToast(acc + ' · ' + Math.round(distToLine) + ' ft to spare', distToLine<=60?'good':null);
+        st.tailgaterGap = 180;
         st.nextStopSpawn = st.worldScroll + 550 + Math.random()*450;
       }
     }
@@ -531,12 +529,12 @@
     var flowMin = Math.max(14, st.limit - 15);
     if (!nearActiveStop){
       if (st.speed < flowMin){
-        st.tailgaterGap -= (flowMin - st.speed) * 2.6 * dt;
+        st.tailgaterGap -= (flowMin - st.speed) * 0.85 * dt;
       } else {
-        st.tailgaterGap += (6 + (st.speed - flowMin)*0.5) * dt;
+        st.tailgaterGap += (2 + (st.speed - flowMin)*0.18) * dt;
       }
     } else {
-      st.tailgaterGap += 10 * dt; // lenient while navigating a stop
+      st.tailgaterGap += 3.2 * dt; // lenient while navigating a stop
     }
     if (st.tailgaterGap > 220) st.tailgaterGap = 220;
     if (st.tailgaterGap <= 0){
@@ -640,15 +638,15 @@
     ctx.translate(x,y);
     ctx.scale(scale,scale);
     ctx.fillStyle = '#8a7a5c';
-    ctx.fillRect(-2, 0, 4, 26);
+    ctx.fillRect(-2, 0, 4, 34);
     ctx.save();
     ctx.rotate(Math.PI/8);
-    octagonPath(0,0,15);
+    octagonPath(0,0,22);
     ctx.fillStyle = '#c1272d';
     ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.font = '700 9px Oswald, sans-serif';
+    ctx.font = '700 13px Oswald, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline='middle';
     ctx.fillText('STOP', 0, 0.5);
     ctx.restore();
@@ -796,8 +794,8 @@
     // draw the sign post for every sign still in view, regardless of state
     for (var sf=0; sf<st.signs.length; sf++){
       var lsy = worldToScreenY(st.signs[sf].stopLineWorldY, st.worldScroll, playerScreenY);
-      if (lsy > roadTop-30 && lsy < roadTop+roadH+30){
-        drawStopSign(roadX+roadW+16, lsy, depthScale(lsy));
+      if (lsy > roadTop-140 && lsy < roadTop+roadH+140){
+        drawStopSign(roadX+roadW+16, lsy, depthScale(lsy) * 1.15);
       }
     }
 
