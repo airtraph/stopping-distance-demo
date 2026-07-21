@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stopping Distance — a driving-physics game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Orbitron:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt:#2b2e33;
+    --asphalt-dark:#1a1c1f;
+    --lane:#f4c531;
+    --edge:#eef0e6;
+    --sign-white:#f5f3ec;
+    --sign-black:#1b1b1b;
+    --safety-red:#c1272d;
+    --safety-red-dark:#8a1c21;
+    --caution:#c7d92c;
+    --caution-dark:#8b990f;
+    --grass:#33502f;
+    --grass-dark:#233a21;
+    --chrome-1:#e2e4e6;
+    --chrome-2:#9a9c9f;
+    --chrome-3:#535558;
+    --sky-1:#4a6178;
+    --sky-2:#1c2733;
+    --paper:#f5f3ec;
+    --ink:#16171a;
+    font-family:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:var(--asphalt-dark);
+    touch-action:none; overscroll-behavior:none; user-select:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    height:100dvh; width:100vw;
+    background:var(--asphalt-dark);
+  }
+  #stage{
+    position:relative; flex:1 1 auto; min-height:0;
+    overflow:hidden;
+    background:var(--sky-2);
+  }
+  #scene{ display:block; width:100%; height:100%; }
+
+  #hudTop{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:10px 12px; pointer-events:none;
+    z-index:5;
+  }
+  #scoreBox{
+    background:rgba(20,21,24,.55); border:1px solid rgba(255,255,255,.12);
+    border-radius:8px; padding:4px 10px; backdrop-filter:blur(2px);
+  }
+  #scoreLabel{ font:600 9px/1 'Oswald',sans-serif; letter-spacing:.12em; color:#b9bcc2; text-transform:uppercase; }
+  #scoreVal{ font:700 20px/1.3 'Orbitron',sans-serif; color:var(--paper); }
+  #livesBox{ display:flex; gap:5px; padding-top:4px; }
+  .life{
+    width:16px; height:16px;
+    background:var(--safety-red);
+    clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%);
+    border:1.5px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.4);
+    transition:background .2s, opacity .2s, transform .2s;
+  }
+  .life.lost{ background:#3a3b3e; border-color:#5a5b5e; opacity:.55; transform:scale(.85); }
+
+  #toast{
+    position:absolute; top:26%; left:50%; transform:translate(-50%,-8px);
+    font:700 15px/1.2 'Oswald',sans-serif; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--paper); background:rgba(20,21,24,.72); border-radius:10px;
+    padding:8px 16px; text-align:center; white-space:nowrap;
+    opacity:0; pointer-events:none; z-index:6;
+    transition:opacity .18s ease, transform .18s ease;
+    border:1px solid rgba(255,255,255,.15);
+  }
+  #toast.show{ opacity:1; transform:translate(-50%,0); }
+  #toast.good{ border-color:var(--caution); color:var(--caution); }
+  #toast.bad{ border-color:var(--safety-red); color:#ff8f8f; }
+
+  .overlayScreen{
+    position:absolute; inset:0; z-index:20;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(120% 100% at 50% 0%, #2e3742 0%, #14171b 70%);
+    padding:24px; text-align:center; gap:14px;
+  }
+  .overlayScreen.hidden{ display:none; }
+  .eyebrow{
+    font:600 11px/1 'Oswald',sans-serif; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--caution);
+  }
+  .titleSign{
+    font:700 34px/1.05 'Oswald',sans-serif; letter-spacing:.01em; color:var(--paper);
+    text-transform:uppercase; max-width:320px;
+  }
+  .subhead{ font:500 14px/1.5 'Inter',sans-serif; color:#c7cad0; max-width:300px; }
+  .rulesCard{
+    background:var(--paper); color:var(--ink); border-radius:12px; padding:14px 16px;
+    max-width:320px; text-align:left; display:flex; flex-direction:column; gap:9px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  .ruleRow{ display:flex; gap:10px; align-items:flex-start; font:500 12.5px/1.4 'Inter',sans-serif; }
+  .ruleIcon{ flex:0 0 auto; width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+    border-radius:5px; font-size:13px; }
+  .ic-mirror{ background:var(--chrome-2); color:#111;}
+  .ic-sign{ background:var(--safety-red); color:#fff; clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%);}
+  .ic-paint{ background:var(--caution); color:#222;}
+  .bigBtn{
+    font:700 17px/1 'Oswald',sans-serif; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--paper); background:linear-gradient(180deg,var(--safety-red),var(--safety-red-dark));
+    border:2px solid #ffffff33; border-radius:12px; padding:16px 38px; cursor:pointer;
+    box-shadow:0 6px 0 #6e1418, 0 10px 18px rgba(0,0,0,.4);
+    transition:transform .06s ease;
+  }
+  .bigBtn:active{ transform:translateY(4px); box-shadow:0 2px 0 #6e1418, 0 4px 10px rgba(0,0,0,.4); }
+  .statGrid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; max-width:280px; }
+  .statGrid div{ font:500 12px/1.3 'Inter',sans-serif; color:#c7cad0; text-align:left; }
+  .statGrid b{ display:block; font:700 20px/1.2 'Orbitron',sans-serif; color:var(--paper); }
+
+  #dashboard{
+    flex:0 0 auto; background:linear-gradient(180deg,#33363b,#202226);
+    border-top:2px solid #47494e; padding:8px 10px calc(8px + env(safe-area-inset-bottom)) 10px;
+    display:flex; flex-direction:column; gap:8px; z-index:10;
+  }
+  .dashRow1{ display:flex; align-items:stretch; gap:10px; }
+  #limitSign{
+    background:var(--paper); border-radius:8px; border:3px solid var(--ink);
+    padding:4px 10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-width:66px;
+  }
+  #limitSign .lbl1, #limitSign .lbl2{ font:700 8px/1 'Oswald',sans-serif; letter-spacing:.05em; color:var(--ink); text-transform:uppercase; }
+  #limitSign .lval{ font:700 26px/1.05 'Oswald',sans-serif; color:var(--ink); }
+
+  #speedo{
+    flex:1; background:var(--asphalt-dark); border-radius:8px; border:1px solid #45474b;
+    display:flex; align-items:center; justify-content:space-between; padding:6px 14px;
+    position:relative; overflow:hidden;
+  }
+  #speedo .sv{ font:700 34px/1 'Orbitron',sans-serif; color:#7CF29C; letter-spacing:.02em; transition:color .15s; }
+  #speedo .sv.over{ color:#ff5b5b; }
+  #speedo .su{ font:600 10px/1.2 'Oswald',sans-serif; color:#8d9096; text-transform:uppercase; letter-spacing:.08em; }
+  #distReadout{ display:flex; flex-direction:column; align-items:flex-end; }
+
+  .dashRow2{ display:flex; gap:10px; height:min(96px, 15vh); }
+  .pedal{
+    flex:1; border-radius:12px; border:2px solid rgba(255,255,255,.15);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    font:700 15px/1 'Oswald',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:#fff;
+    -webkit-user-select:none; user-select:none; cursor:pointer;
+    box-shadow:0 5px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15);
+    transition:transform .05s ease, box-shadow .05s ease, filter .1s ease;
+  }
+  .pedal .pIcon{ font-size:20px; }
+  #brakeBtn{ background:linear-gradient(180deg,#d33c3c,#8f1c21); }
+  #gasBtn{ background:linear-gradient(180deg,#3fae5c,#1f6f38); }
+  .pedal.pressed{ transform:translateY(5px); box-shadow:0 0 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15); filter:brightness(1.15); }
+
+  #flash{
+    position:absolute; inset:0; background:var(--safety-red); opacity:0; pointer-events:none; z-index:15;
+    mix-blend-mode:screen;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="scene"></canvas>
+    <div id="flash"></div>
+    <div id="hudTop">
+      <div id="scoreBox">
+        <div id="scoreLabel">Score</div>
+        <div id="scoreVal">0</div>
+      </div>
+      <div id="livesBox">
+        <div class="life"></div><div class="life"></div><div class="life"></div>
+      </div>
+    </div>
+    <div id="toast"></div>
+
+    <div id="startScreen" class="overlayScreen">
+      <div class="eyebrow">A physics-of-driving game</div>
+      <div class="titleSign">Stopping<br>Distance</div>
+      <div class="subhead">Speed doesn't just change how fast you get there — it changes how far it takes to stop. Feel it in your hands.</div>
+      <div class="rulesCard">
+        <div class="ruleRow"><span class="ruleIcon ic-mirror">◐</span><span>Drive too slow for too long and the car behind closes in. Keep pace with traffic.</span></div>
+        <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 mph — before the line. Rolling through counts as a miss.</span></div>
+        <div class="ruleRow"><span class="ruleIcon ic-paint">▬</span><span>Watch the road paint: yellow-green is your reaction distance, red is your braking distance. Brake before the red zone, not inside it.</span></div>
+      </div>
+      <button class="bigBtn" id="startBtn">Start Driving</button>
+    </div>
+
+    <div id="gameOverScreen" class="overlayScreen hidden">
+      <div class="eyebrow" id="overReason">Incident report</div>
+      <div class="titleSign" style="font-size:28px;">Drive Ended</div>
+      <div class="statGrid">
+        <div>Final score<b id="finalScore">0</b></div>
+        <div>Distance driven<b id="finalDist">0 ft</b></div>
+        <div>Perfect stops<b id="finalPerfect">0</b></div>
+        <div>Signs run<b id="finalFailed">0</b></div>
+      </div>
+      <button class="bigBtn" id="restartBtn">Drive Again</button>
+    </div>
+  </div>
+
+  <div id="dashboard">
+    <div class="dashRow1">
+      <div id="limitSign">
+        <div class="lbl1">Speed</div>
+        <div class="lval" id="limitVal">25</div>
+        <div class="lbl2">Limit</div>
+      </div>
+      <div id="speedo">
+        <div>
+          <div class="sv" id="speedVal">0</div>
+          <div class="su">mph</div>
+        </div>
+        <div id="distReadout">
+          <div class="su" id="distVal" style="color:#8d9096;">0 ft</div>
+          <div class="su" style="color:#5b5d61;">traveled</div>
+        </div>
+      </div>
+    </div>
+    <div class="dashRow2">
+      <div class="pedal" id="brakeBtn"><span class="pIcon">⛔</span>Brake</div>
+      <div class="pedal" id="gasBtn"><span class="pIcon">▲</span>Gas</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants (physically grounded) ----------
+  var MPH_TO_FTPS = 1.467;
+  var REACTION_TIME = 1.5;      // seconds, average perception-reaction time
+  var FRICTION = 0.7;           // dry pavement friction coefficient
+  var G = 32.2;                 // ft/s^2
+  var BRAKE_DECEL_FTPS2 = G * FRICTION;
+  var BRAKE_DECEL_MPHPS = BRAKE_DECEL_FTPS2 / MPH_TO_FTPS;  // ~15.3 mph/s
+  var ACCEL_MPHPS = 11;
+  var COAST_MPHPS = 4.2;
+  var MAX_SPEED = 72;
+  var STOP_EPS = 0.6;            // mph considered "stopped"
+  var PX_PER_FT = 1;             // world scale: 1 ft == 1 world px
+
+  function reactionDistFt(mph){ return MPH_TO_FTPS * mph * REACTION_TIME; }
+  function brakingDistFt(mph){ return (mph*mph) / (30 * FRICTION); }
+  function totalStopFt(mph){ return reactionDistFt(mph) + brakingDistFt(mph); }
+
+  // ---------- dom ----------
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('scene');
+  var ctx = canvas.getContext('2d');
+  var scoreVal = document.getElementById('scoreVal');
+  var speedVal = document.getElementById('speedVal');
+  var distVal = document.getElementById('distVal');
+  var limitVal = document.getElementById('limitVal');
+  var toastEl = document.getElementById('toast');
+  var flashEl = document.getElementById('flash');
+  var livesBox = document.getElementById('livesBox');
+  var lifeEls = livesBox.querySelectorAll('.life');
+  var brakeBtn = document.getElementById('brakeBtn');
+  var gasBtn = document.getElementById('gasBtn');
+  var startScreen = document.getElementById('startScreen');
+  var gameOverScreen = document.getElementById('gameOverScreen');
+  var startBtn = document.getElementById('startBtn');
+  var restartBtn = document.getElementById('restartBtn');
+
+  // ---------- canvas sizing ----------
+  var W = 0, H = 0, DPR = 1;
+  function resize(){
+    var rect = stage.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    W = Math.max(1, Math.round(rect.width));
+    H = Math.max(1, Math.round(rect.height));
+    canvas.width = Math.round(W*DPR);
+    canvas.height = Math.round(H*DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function(){ setTimeout(resize,50); });
+  resize();
+
+  // ---------- game state ----------
+  var S = null;
+  function freshState(){
+    return {
+      running:false, over:false,
+      speed:0, limit:25,
+      worldScroll:0,
+      score:0, lives:3,
+      gas:false, brake:false,
+      signs:[], decor:[], limitSigns:[],
+      nextStopSpawn: 420,
+      nextLimitSpawn: 900,
+      nextDecorAt: 0,
+      tailgaterGap: 150,
+      shake:0,
+      toastTimer:0,
+      lastMilestone:0,
+      perfectCount:0, failedCount:0,
+      laneOffset:0,
+    };
+  }
+
+  var decorId = 0, signId = 0;
+
+  function spawnDecor(st){
+    decorId++;
+    var side = Math.random() < 0.5 ? -1 : 1;
+    var type = Math.random() < 0.55 ? 'tree' : 'building';
+    st.decor.push({
+      id:decorId, side:side, type:type,
+      worldY: st.worldScroll + 260 + Math.random()*160,
+      jitter: Math.random()*14,
+      hue: Math.random()
+    });
+  }
+
+  function spawnStopSign(st){
+    signId++;
+    var aheadFt = 480 + Math.random()*260;
+    st.signs.push({
+      id:signId,
+      stopLineWorldY: st.worldScroll + aheadFt,
+      state:'approaching', // approaching -> passed | failed
+      stopDistFt:null
+    });
+  }
+
+  function spawnLimitSign(st){
+    var options = [25,35,45,55];
+    var choices = options.filter(function(v){ return v !== st.limit; });
+    var newLimit = choices[Math.floor(Math.random()*choices.length)];
+    st.limitSigns.push({
+      worldY: st.worldScroll + 300 + Math.random()*200,
+      value:newLimit,
+      applied:false
+    });
+  }
+
+  // ---------- toast ----------
+  function showToast(text, kind){
+    toastEl.textContent = text;
+    toastEl.className = 'show' + (kind ? ' '+kind : '');
+    S.toastTimer = 1.3;
+  }
+
+  function flashScreen(){
+    flashEl.style.transition = 'none';
+    flashEl.style.opacity = '0.55';
+    requestAnimationFrame(function(){
+      flashEl.style.transition = 'opacity .35s ease';
+      flashEl.style.opacity = '0';
+    });
+  }
+
+  function updateLives(){
+    for (var i=0;i<lifeEls.length;i++){
+      lifeEls[i].classList.toggle('lost', i >= S.lives);
+    }
+  }
+
+  // ---------- audio (tiny synthesized beeps, no assets) ----------
+  var actx = null;
+  function beep(freq, dur, type, vol){
+    try{
+      if (!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+      var o = actx.createOscillator();
+      var g = actx.createGain();
+      o.type = type||'sine';
+      o.frequency.value = freq;
+      g.gain.value = (vol!==undefined?vol:0.06);
+      o.connect(g); g.connect(actx.destination);
+      var t0 = actx.currentTime;
+      g.gain.setValueAtTime(g.gain.value, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+      o.start(t0); o.stop(t0+dur);
+    }catch(e){}
+  }
+
+  // ---------- input ----------
+  function bindPedal(el, onDown, onUp){
+    el.addEventListener('pointerdown', function(e){ e.preventDefault(); el.setPointerCapture&&el.setPointerCapture(e.pointerId); el.classList.add('pressed'); onDown(); });
+    function release(){ el.classList.remove('pressed'); onUp(); }
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+    el.addEventListener('pointerleave', release);
+  }
+  bindPedal(gasBtn, function(){ if(S) S.gas = true; }, function(){ if(S) S.gas = false; });
+  bindPedal(brakeBtn, function(){ if(S) S.brake = true; }, function(){ if(S) S.brake = false; });
+
+  window.addEventListener('keydown', function(e){
+    if (!S) return;
+    if (e.code==='ArrowUp'||e.code==='KeyW'){ S.gas = true; }
+    if (e.code==='ArrowDown'||e.code==='KeyS'||e.code==='Space'){ S.brake = true; }
+  });
+  window.addEventListener('keyup', function(e){
+    if (!S) return;
+    if (e.code==='ArrowUp'||e.code==='KeyW'){ S.gas = false; }
+    if (e.code==='ArrowDown'||e.code==='KeyS'||e.code==='Space'){ S.brake = false; }
+  });
+
+  // ---------- lifecycle ----------
+  function startGame(){
+    S = freshState();
+    updateLives();
+    scoreVal.textContent = '0';
+    limitVal.textContent = String(S.limit);
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    S.running = true;
+    lastTs = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function endGame(reason){
+    S.running = false;
+    S.over = true;
+    document.getElementById('overReason').textContent = reason;
+    document.getElementById('finalScore').textContent = Math.floor(S.score);
+    document.getElementById('finalDist').textContent = Math.floor(S.worldScroll).toLocaleString()+' ft';
+    document.getElementById('finalPerfect').textContent = String(S.perfectCount);
+    document.getElementById('finalFailed').textContent = String(S.failedCount);
+    gameOverScreen.classList.remove('hidden');
+  }
+
+  startBtn.addEventListener('click', function(){ try{ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} startGame(); });
+  restartBtn.addEventListener('click', startGame);
+
+  // ---------- update ----------
+  function update(dt){
+    var st = S;
+
+    // speed control
+    if (st.brake){
+      st.speed -= BRAKE_DECEL_MPHPS * dt;
+    } else if (st.gas){
+      st.speed += ACCEL_MPHPS * dt;
+    } else {
+      st.speed -= COAST_MPHPS * dt;
+    }
+    if (st.speed < 0) st.speed = 0;
+    if (st.speed > MAX_SPEED) st.speed = MAX_SPEED;
+
+    var ftThisFrame = st.speed * MPH_TO_FTPS * dt;
+    st.worldScroll += ftThisFrame * PX_PER_FT;
+
+    // score trickle by distance
+    var milestone = Math.floor(st.worldScroll / 40);
+    if (milestone > st.lastMilestone){
+      st.score += (milestone - st.lastMilestone) * 2;
+      st.lastMilestone = milestone;
+    }
+
+    // spawn decor
+    if (st.worldScroll >= st.nextDecorAt){
+      spawnDecor(st);
+      st.nextDecorAt = st.worldScroll + 90 + Math.random()*70;
+    }
+
+    // spawn stop signs (one active at a time)
+    var hasActiveStop = st.signs.some(function(s){ return s.state==='approaching'; });
+    if (!hasActiveStop && st.worldScroll >= st.nextStopSpawn){
+      spawnStopSign(st);
+    }
+
+    // spawn limit signs
+    if (st.worldScroll >= st.nextLimitSpawn){
+      spawnLimitSign(st);
+      st.nextLimitSpawn = st.worldScroll + 700 + Math.random()*500;
+    }
+
+    // limit signs resolve
+    for (var li=0; li<st.limitSigns.length; li++){
+      var lsg = st.limitSigns[li];
+      if (!lsg.applied && (lsg.worldY - st.worldScroll) <= 0){
+        lsg.applied = true;
+        st.limit = lsg.value;
+      }
+    }
+    st.limitSigns = st.limitSigns.filter(function(l){ return (l.worldY - st.worldScroll) > -60; });
+
+    // stop signs resolve
+    var nearActiveStop = false;
+    for (var i=0;i<st.signs.length;i++){
+      var sg = st.signs[i];
+      if (sg.state !== 'approaching') continue;
+      var distToLine = sg.stopLineWorldY - st.worldScroll;
+      if (distToLine < 450 && distToLine > -30) nearActiveStop = true;
+
+      if (distToLine <= 0){
+        // line reached — must already be stopped, else it's a miss
+        sg.state = 'failed';
+        st.lives -= 1;
+        st.failedCount += 1;
+        updateLives();
+        showToast('Ran the stop sign!', 'bad');
+        flashScreen();
+        beep(140,0.35,'sawtooth',0.08);
+        st.score = Math.max(0, st.score - 40);
+        if (st.lives <= 0){ endGame('Ran a stop sign with no lives left'); return; }
+      } else if (st.speed <= STOP_EPS){
+        sg.state = 'passed';
+        sg.stopDistFt = distToLine;
+        var acc;
+        if (distToLine <= 15){ acc='PERFECT STOP'; st.score += 150; st.perfectCount++; beep(880,0.12,'sine',0.07); setTimeout(function(){beep(1180,0.12,'sine',0.06);},90); }
+        else if (distToLine <= 60){ acc='Good stop'; st.score += 90; beep(660,0.14,'sine',0.06); }
+        else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
+        else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
+        showToast(acc + ' · ' + Math.round(distToLine) + ' ft to spare', distToLine<=60?'good':null);
+        st.nextStopSpawn = st.worldScroll + 550 + Math.random()*450;
+      }
+    }
+    st.signs = st.signs.filter(function(s){ return (s.stopLineWorldY - st.worldScroll) > -140; });
+
+    // tailgater
+    var flowMin = Math.max(14, st.limit - 15);
+    if (!nearActiveStop){
+      if (st.speed < flowMin){
+        st.tailgaterGap -= (flowMin - st.speed) * 2.6 * dt;
+      } else {
+        st.tailgaterGap += (6 + (st.speed - flowMin)*0.5) * dt;
+      }
+    } else {
+      st.tailgaterGap += 10 * dt; // lenient while navigating a stop
+    }
+    if (st.tailgaterGap > 220) st.tailgaterGap = 220;
+    if (st.tailgaterGap <= 0){
+      st.tailgaterGap = 140;
+      st.lives -= 1;
+      updateLives();
+      showToast('Too slow — rear-ended!', 'bad');
+      flashScreen();
+      st.shake = 0.4;
+      beep(100,0.4,'square',0.09);
+      st.score = Math.max(0, st.score - 30);
+      if (st.lives <= 0){ endGame('Rear-ended for driving too slowly'); return; }
+    }
+
+    if (st.shake > 0) st.shake = Math.max(0, st.shake - dt);
+    if (st.toastTimer > 0){
+      st.toastTimer -= dt;
+      if (st.toastTimer <= 0) toastEl.classList.remove('show');
+    }
+
+    st.laneOffset = (st.laneOffset + ftThisFrame) % 48;
+
+    // hud text
+    scoreVal.textContent = Math.floor(st.score).toLocaleString();
+    speedVal.textContent = Math.round(st.speed);
+    speedVal.classList.toggle('over', st.speed > st.limit + 5);
+    distVal.textContent = Math.floor(st.worldScroll).toLocaleString() + ' ft';
+    limitVal.textContent = String(st.limit);
+  }
+
+  // ---------- render helpers ----------
+  function worldToScreenY(worldY, worldScroll, playerScreenY){
+    return playerScreenY - (worldY - worldScroll);
+  }
+
+  function drawTree(x, y, scale, hue){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    ctx.fillStyle = '#5b4636';
+    ctx.fillRect(-3, 0, 6, 14);
+    var g = hue > 0.5 ? '#3f6b3c' : '#345c33';
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(0,-34); ctx.lineTo(16,-4); ctx.lineTo(-16,-4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0,-24); ctx.lineTo(13,2); ctx.lineTo(-13,2); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function drawBuilding(x, y, scale, hue){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    var w = 34, h = 46;
+    ctx.fillStyle = hue>0.5 ? '#6b6459' : '#54544f';
+    ctx.fillRect(-w/2, -h, w, h);
+    ctx.fillStyle = 'rgba(255,214,120,.65)';
+    for (var r=0;r<4;r++){
+      for (var c=0;c<3;c++){
+        if ((r+c)%3===0) continue;
+        ctx.fillRect(-w/2+6+c*10, -h+8+r*10, 5,6);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawCarTop(x, y, scale, bodyColor){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.beginPath(); ctx.ellipse(0,20,20,7,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = bodyColor;
+    roundRectPath(-16,-30,32,58,9);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(160,200,230,.85)';
+    roundRectPath(-11,-22,22,20,5);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(160,200,230,.55)';
+    roundRectPath(-11,2,22,16,5);
+    ctx.fill();
+    ctx.fillStyle = '#ffe9a8';
+    ctx.fillRect(-15,-30,6,4);
+    ctx.fillRect(9,-30,6,4);
+    ctx.fillStyle = '#e23b3b';
+    ctx.fillRect(-15,24,6,4);
+    ctx.fillRect(9,24,6,4);
+    ctx.restore();
+  }
+
+  function roundRectPath(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawStopSign(x, y, scale){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    ctx.fillStyle = '#8a7a5c';
+    ctx.fillRect(-2, 0, 4, 26);
+    ctx.save();
+    ctx.rotate(Math.PI/8);
+    octagonPath(0,0,15);
+    ctx.fillStyle = '#c1272d';
+    ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 9px Oswald, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline='middle';
+    ctx.fillText('STOP', 0, 0.5);
+    ctx.restore();
+    ctx.restore();
+  }
+  function octagonPath(cx,cy,r){
+    ctx.beginPath();
+    for (var i=0;i<8;i++){
+      var a = Math.PI/8 + i*Math.PI/4;
+      var px = cx + r*Math.cos(a), py = cy + r*Math.sin(a);
+      if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+  }
+
+  function drawLimitPost(x,y,scale,value){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    ctx.fillStyle = '#8a7a5c';
+    ctx.fillRect(-2,0,4,24);
+    roundRectPath(-13,-30,26,32,3);
+    ctx.fillStyle = '#f5f3ec';
+    ctx.fill();
+    ctx.lineWidth = 1.6; ctx.strokeStyle = '#1b1b1b'; ctx.stroke();
+    ctx.fillStyle = '#1b1b1b';
+    ctx.textAlign='center';
+    ctx.font = '700 6px Oswald, sans-serif';
+    ctx.fillText('SPEED', 0, -22);
+    ctx.fillText('LIMIT', 0, -16);
+    ctx.font = '700 13px Oswald, sans-serif';
+    ctx.fillText(String(value), 0, -3);
+    ctx.restore();
+  }
+
+  // ---------- render ----------
+  function render(){
+    var st = S;
+    ctx.clearRect(0,0,W,H);
+
+    var mirrorH = Math.min(96, H*0.20);
+    var roadTop = mirrorH + 8;
+    var roadH = H - roadTop;
+    var roadW = Math.min(W*0.82, 340);
+    var roadX = (W-roadW)/2;
+    var playerScreenY = roadTop + roadH*0.80;
+
+    ctx.save();
+    if (st.shake>0){
+      var mag = st.shake*10;
+      ctx.translate((Math.random()-0.5)*mag, (Math.random()-0.5)*mag);
+    }
+
+    // --- road scene ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, roadTop, W, roadH);
+    ctx.clip();
+
+    // grass/ground background
+    var gg = ctx.createLinearGradient(0,roadTop,0,roadTop+roadH);
+    gg.addColorStop(0,'#33465a');
+    gg.addColorStop(0.12,'#2f4a33');
+    gg.addColorStop(1,'#233a21');
+    ctx.fillStyle = gg;
+    ctx.fillRect(0, roadTop, W, roadH);
+
+    // road
+    ctx.fillStyle = '#2b2e33';
+    ctx.fillRect(roadX, roadTop, roadW, roadH);
+    // shoulders
+    ctx.fillStyle = '#e8e6dc';
+    ctx.fillRect(roadX-4, roadTop, 4, roadH);
+    ctx.fillRect(roadX+roadW, roadTop, 4, roadH);
+
+    // dashed center line
+    ctx.fillStyle = '#f4c531';
+    var dashLen=22, gapLen=18, period=dashLen+gapLen;
+    var off = st.laneOffset % period;
+    for (var yy = roadTop-period+off; yy < roadTop+roadH; yy += period){
+      ctx.fillRect(roadX+roadW/2-2.5, yy, 5, dashLen);
+    }
+
+    function depthScale(sy){
+      var f = (sy - roadTop) / roadH;
+      f = Math.max(0, Math.min(1,f));
+      return 0.55 + 0.55*f;
+    }
+
+    // decor (draw farthest first)
+    var decorSorted = st.decor.slice().sort(function(a,b){ return b.worldY - a.worldY; });
+    for (var d=0; d<decorSorted.length; d++){
+      var it = decorSorted[d];
+      var sy = worldToScreenY(it.worldY, st.worldScroll, playerScreenY);
+      if (sy < roadTop-60 || sy > roadTop+roadH+60) continue;
+      var sc = depthScale(sy);
+      var baseX = it.side<0 ? roadX - 18 - it.jitter*sc : roadX+roadW + 18 + it.jitter*sc;
+      if (it.type==='tree') drawTree(baseX, sy, sc, it.hue); else drawBuilding(baseX, sy, sc, it.hue);
+    }
+
+    // stopping-distance paint zones for the active sign
+    for (var s=0;s<st.signs.length;s++){
+      var sgz = st.signs[s];
+      if (sgz.state !== 'approaching') continue;
+      var mph = st.speed;
+      var rFt = reactionDistFt(mph);
+      var bFt = brakingDistFt(mph);
+      var lineWorldY = sgz.stopLineWorldY;
+      var brakeStartWorld = lineWorldY - bFt;
+      var reactStartWorld = brakeStartWorld - rFt;
+
+      var lineSY = worldToScreenY(lineWorldY, st.worldScroll, playerScreenY);
+      var brakeStartSY = worldToScreenY(brakeStartWorld, st.worldScroll, playerScreenY);
+      var reactStartSY = worldToScreenY(reactStartWorld, st.worldScroll, playerScreenY);
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(roadX, roadTop, roadW, roadH); ctx.clip();
+
+      ctx.fillStyle = 'rgba(199,217,44,0.30)';
+      ctx.fillRect(roadX, Math.min(reactStartSY,brakeStartSY), roadW, Math.max(1,brakeStartSY-reactStartSY));
+
+      ctx.fillStyle = 'rgba(193,39,45,0.34)';
+      ctx.fillRect(roadX, Math.min(brakeStartSY,lineSY), roadW, Math.max(1,lineSY-brakeStartSY));
+
+      if (mph > 2){
+        ctx.fillStyle = 'rgba(20,21,24,.55)';
+        var midReact = (reactStartSY+brakeStartSY)/2;
+        var midBrake = (brakeStartSY+lineSY)/2;
+        if (midReact > roadTop && midReact < roadTop+roadH){
+          ctx.font = '700 9px Oswald, sans-serif'; ctx.textAlign='center';
+          drawPaintLabel(roadX+roadW/2, midReact, 'REACT · '+Math.round(rFt)+' ft');
+        }
+        if (midBrake > roadTop && midBrake < roadTop+roadH){
+          drawPaintLabel(roadX+roadW/2, midBrake, 'BRAKE · '+Math.round(bFt)+' ft');
+        }
+      }
+      ctx.restore();
+
+      // stop line
+      if (lineSY > roadTop-20 && lineSY < roadTop+roadH+20){
+        ctx.fillStyle = '#f5f3ec';
+        ctx.fillRect(roadX+6, lineSY-3, roadW-12, 6);
+      }
+    }
+    // draw the sign post for every sign still in view, regardless of state
+    for (var sf=0; sf<st.signs.length; sf++){
+      var lsy = worldToScreenY(st.signs[sf].stopLineWorldY, st.worldScroll, playerScreenY);
+      if (lsy > roadTop-30 && lsy < roadTop+roadH+30){
+        drawStopSign(roadX+roadW+16, lsy, depthScale(lsy));
+      }
+    }
+
+    // limit signs
+    for (var lm=0; lm<st.limitSigns.length; lm++){
+      var lsig = st.limitSigns[lm];
+      var lsy2 = worldToScreenY(lsig.worldY, st.worldScroll, playerScreenY);
+      if (lsy2 < roadTop-40 || lsy2 > roadTop+roadH+40) continue;
+      drawLimitPost(roadX-18, lsy2, depthScale(lsy2), lsig.value);
+    }
+
+    // player car
+    drawCarTop(roadX+roadW/2, playerScreenY, 1, '#2f5c8a');
+
+    ctx.restore(); // clip road area
+
+    // --- mirror inset ---
+    ctx.save();
+    var mw = Math.min(W*0.6, 210), mh = mirrorH;
+    var mx = (W-mw)/2, my = 6;
+    roundRectPath(mx,my,mw,mh,mh*0.28);
+    ctx.save();
+    ctx.clip();
+    // mirror scene, flipped horizontally for authenticity
+    ctx.save();
+    ctx.translate(mx+mw, my); ctx.scale(-1,1);
+    var msky = ctx.createLinearGradient(0,0,0,mh);
+    msky.addColorStop(0,'#4a6178'); msky.addColorStop(1,'#242f3a');
+    ctx.fillStyle = msky; ctx.fillRect(0,0,mw,mh);
+    ctx.fillStyle = '#33463a';
+    ctx.fillRect(0,mh*0.62,mw,mh*0.4);
+    var mRoadW = mw*0.5, mRoadX=(mw-mRoadW)/2;
+    ctx.fillStyle = '#2b2e33';
+    ctx.fillRect(mRoadX, mh*0.5, mRoadW, mh*0.55);
+    // tailgater car, scaled by inverse gap
+    var gapN = Math.max(0, Math.min(1, st.tailgaterGap/220));
+    var tScale = 0.32 + (1-gapN)*0.85;
+    var tY = mh*0.66 + (1-gapN)*mh*0.28;
+    drawCarTop(mw/2, tY, tScale, gapN<0.28 ? '#c1272d' : '#454850');
+    ctx.restore();
+    ctx.restore();
+    // chrome bezel
+    roundRectPath(mx,my,mw,mh,mh*0.28);
+    ctx.lineWidth = 4;
+    var chromeGrad = ctx.createLinearGradient(mx,my,mx,my+mh);
+    chromeGrad.addColorStop(0,'#e2e4e6'); chromeGrad.addColorStop(1,'#54565a');
+    ctx.strokeStyle = chromeGrad;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore(); // shake
+  }
+
+  function drawPaintLabel(x,y,text){
+    ctx.save();
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = '700 9px Oswald, sans-serif';
+    var padding=5;
+    var wtxt = ctx.measureText(text).width;
+    ctx.fillStyle='rgba(20,21,24,.55)';
+    roundRectPath(x-wtxt/2-padding, y-8, wtxt+padding*2, 16, 4);
+    ctx.fill();
+    ctx.fillStyle='#f5f3ec';
+    ctx.fillText(text, x, y+0.5);
+    ctx.restore();
+  }
+
+  // ---------- loop ----------
+  var lastTs = 0;
+  function loop(ts){
+    if (!S || !S.running) return;
+    var dt = Math.min(0.05, (ts-lastTs)/1000 || 0);
+    lastTs = ts;
+    update(dt);
+    if (S && S.running) render();
+    if (S && S.running) requestAnimationFrame(loop);
+  }
+
+  // idle render of a static scene behind the start screen
+  (function idlePreview(){
+    S = freshState();
+    S.decor = [
+      {id:1,side:-1,type:'tree',worldY:120,jitter:4,hue:0.2},
+      {id:2,side:1,type:'building',worldY:220,jitter:2,hue:0.7},
+      {id:3,side:-1,type:'tree',worldY:340,jitter:8,hue:0.6}
+    ];
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
