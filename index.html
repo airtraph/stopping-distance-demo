@@ -876,12 +876,7 @@
 
       if (mph > 2){
         ctx.fillStyle = 'rgba(20,21,24,.55)';
-        var midReact = (reactStartSY+brakeStartSY)/2;
         var midBrake = (brakeStartSY+lineSY)/2;
-        if (midReact > roadTop && midReact < roadTop+roadH){
-          ctx.font = '700 9px Oswald, sans-serif'; ctx.textAlign='center';
-          drawPaintLabel(roadX+roadW/2, midReact, 'REACT · '+Math.round(rFt)+' ft');
-        }
         if (midBrake > roadTop && midBrake < roadTop+roadH){
           drawPaintLabel(roadX+roadW/2, midBrake, 'BRAKE · '+Math.round(bFt)+' ft');
         }
@@ -912,6 +907,20 @@
       var lsy2 = worldToScreenY(lsig.worldY, st.worldScroll, playerScreenY);
       if (lsy2 < roadTop-40 || lsy2 > roadTop+roadH+40) continue;
       drawLimitPost(roadX-18, lsy2, depthScale(lsy2), lsig.value);
+    }
+
+    // rear-ender car approaches from the bottom of the screen and closes in from behind
+    var gapN = Math.max(0, Math.min(1, st.tailgaterGap/220));
+    var tailReveal = 1 - gapN;
+    if (tailReveal > 0.02){
+      var tailScale = 0.5 + tailReveal*0.55;
+      var tailY = roadTop + roadH + 700 - tailReveal*(roadH - 120);
+      var tailX = roadX + roadW/2;
+      var tailOffset = 28 + tailReveal*18;
+      ctx.save();
+      ctx.globalAlpha = 0.2 + tailReveal*0.8;
+      drawCarTop(tailX, tailY + tailOffset, tailScale, tailReveal > 0.7 ? '#c1272d' : '#454850');
+      ctx.restore();
     }
 
     // player car
