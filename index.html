@@ -110,6 +110,21 @@
   .ic-mirror{ background:var(--chrome-2); color:#111;}
   .ic-sign{ background:var(--safety-red); color:#fff; clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%);}
   .ic-paint{ background:var(--caution); color:#222;}
+  .modifierStack{ display:flex; flex-direction:column; gap:8px; width:min(320px, 100%); }
+  .modifierCard{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:rgba(245,243,236,.94); color:var(--ink); border:2px solid rgba(27,27,27,.16);
+    border-radius:12px; padding:10px 12px; cursor:pointer; text-align:left;
+    box-shadow:0 6px 14px rgba(0,0,0,.18);
+  }
+  .modifierCard.active{ border-color:var(--caution); box-shadow:0 0 0 2px rgba(199,217,44,.18), 0 6px 14px rgba(0,0,0,.18); }
+  .modifierMeta{ display:flex; flex-direction:column; gap:2px; }
+  .modifierTitle{ font:700 12px/1.15 'Oswald',sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+  .modifierDesc{ font:500 11px/1.35 'Inter',sans-serif; color:#56606b; }
+  .modifierToggle{ position:relative; width:42px; height:24px; border-radius:999px; background:#c3c7cc; flex:0 0 auto; transition:background .2s ease; }
+  .modifierToggle::after{ content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.28); transition:transform .2s ease; }
+  .modifierCard.active .modifierToggle{ background:var(--caution); }
+  .modifierCard.active .modifierToggle::after{ transform:translateX(18px); }
   .bigBtn{
     font:700 17px/1 'Oswald',sans-serif; letter-spacing:.06em; text-transform:uppercase;
     color:var(--paper); background:linear-gradient(180deg,var(--safety-red),var(--safety-red-dark));
@@ -191,6 +206,29 @@
         <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 mph — before the line. Rolling through counts as a miss.</span></div>
         <div class="ruleRow"><span class="ruleIcon ic-paint">▬</span><span>Watch the road paint: yellow-green is your reaction distance, red is your braking distance. Brake before the red zone, not inside it.</span></div>
       </div>
+      <div class="modifierStack">
+        <button type="button" class="modifierCard" data-modifier="fog">
+          <div class="modifierMeta">
+            <div class="modifierTitle">Fog</div>
+            <div class="modifierDesc">A low cloud band hides signs and shortens reaction time.</div>
+          </div>
+          <span class="modifierToggle"></span>
+        </button>
+        <button type="button" class="modifierCard" data-modifier="rain">
+          <div class="modifierMeta">
+            <div class="modifierTitle">Rain</div>
+            <div class="modifierDesc">Heavy rain extends braking distance and makes stopping harder.</div>
+          </div>
+          <span class="modifierToggle"></span>
+        </button>
+        <button type="button" class="modifierCard" data-modifier="snow">
+          <div class="modifierMeta">
+            <div class="modifierTitle">Snow</div>
+            <div class="modifierDesc">Snow combines rain and fog for a brutal winter run.</div>
+          </div>
+          <span class="modifierToggle"></span>
+        </button>
+      </div>
       <button class="bigBtn" id="startBtn">Start Driving</button>
     </div>
 
@@ -249,9 +287,17 @@
   var STOP_EPS = 0.6;            // mph considered "stopped"
   var PX_PER_FT = 1;             // world scale: 1 ft == 1 world px
 
-  function reactionDistFt(mph){ return MPH_TO_FTPS * mph * REACTION_TIME; }
-  function brakingDistFt(mph){ return (mph*mph) / (30 * FRICTION); }
-  function totalStopFt(mph){ return reactionDistFt(mph) + brakingDistFt(mph); }
+  function reactionDistFt(mph, st){
+    var reactionTime = REACTION_TIME;
+    if (st && (st.weather.fog || st.weather.snow)) reactionTime *= 0.72;
+    return MPH_TO_FTPS * mph * reactionTime;
+  }
+  function brakingDistFt(mph, st){
+    var dist = (mph*mph) / (30 * FRICTION);
+    if (st && (st.weather.rain || st.weather.snow)) dist *= st.weather.snow ? 1.58 : 1.42;
+    return dist;
+  }
+  function totalStopFt(mph, st){ return reactionDistFt(mph, st) + brakingDistFt(mph, st); }
   function worldScrollRateFtPerSec(mph){
     var normalized = mph / MAX_SPEED;
     var speedFactor = 1 + Math.pow(normalized, 1.3) * 4.2;
@@ -276,6 +322,32 @@
   var gameOverScreen = document.getElementById('gameOverScreen');
   var startBtn = document.getElementById('startBtn');
   var restartBtn = document.getElementById('restartBtn');
+  var selectedWeather = {fog:false, rain:false, snow:false};
+  var modifierCards = Array.prototype.slice.call(document.querySelectorAll('.modifierCard'));
+
+  function getWeatherSelection(){
+    return {
+      fog: selectedWeather.fog || selectedWeather.snow,
+      rain: selectedWeather.rain || selectedWeather.snow,
+      snow: selectedWeather.snow
+    };
+  }
+
+  function syncModifierButtons(){
+    modifierCards.forEach(function(card){
+      var key = card.getAttribute('data-modifier');
+      card.classList.toggle('active', !!selectedWeather[key]);
+    });
+  }
+
+  modifierCards.forEach(function(card){
+    card.addEventListener('click', function(){
+      var key = card.getAttribute('data-modifier');
+      selectedWeather[key] = !selectedWeather[key];
+      syncModifierButtons();
+    });
+  });
+  syncModifierButtons();
 
   // ---------- canvas sizing ----------
   var W = 0, H = 0, DPR = 1;
@@ -289,6 +361,7 @@
     canvas.style.width = W+'px';
     canvas.style.height = H+'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    if (S) buildWeatherParticles(S);
   }
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', function(){ setTimeout(resize,50); });
@@ -313,6 +386,8 @@
       lastMilestone:0,
       perfectCount:0, failedCount:0,
       laneOffset:0,
+      weather:{fog:false, rain:false, snow:false},
+      weatherParticles:[],
     };
   }
 
@@ -347,6 +422,36 @@
       value:60,
       applied:false
     });
+  }
+
+  function buildWeatherParticles(st){
+    if (!st) return;
+    st.weatherParticles = [];
+    var hasWeather = st.weather.fog || st.weather.rain || st.weather.snow;
+    if (!hasWeather) return;
+    var count = st.weather.snow ? 90 : 70;
+    for (var i=0;i<count;i++){
+      st.weatherParticles.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        size: st.weather.snow ? (1.2 + Math.random()*2.4) : (0.8 + Math.random()*1.2),
+        speed: st.weather.snow ? (0.7 + Math.random()*1.2) : (2.4 + Math.random()*1.8),
+        drift: (Math.random()-0.5) * (st.weather.snow ? 0.6 : 1.4),
+        alpha: st.weather.snow ? (0.45 + Math.random()*0.35) : (0.35 + Math.random()*0.25),
+        kind: st.weather.snow ? 'snow' : 'rain'
+      });
+    }
+  }
+
+  function updateWeatherParticles(st, dt){
+    if (!st || !st.weatherParticles || !st.weatherParticles.length) return;
+    for (var i=0;i<st.weatherParticles.length;i++){
+      var p = st.weatherParticles[i];
+      p.x += p.drift * dt * 60;
+      p.y += p.speed * dt * 60;
+      if (p.y > H + 10){ p.y = -8; p.x = Math.random()*W; }
+      if (p.x < -10 || p.x > W + 10){ p.x = Math.random()*W; }
+    }
   }
 
   // ---------- toast ----------
@@ -414,6 +519,8 @@
   // ---------- lifecycle ----------
   function startGame(){
     S = freshState();
+    S.weather = getWeatherSelection();
+    buildWeatherParticles(S);
     updateLives();
     scoreVal.textContent = '0';
     limitVal.textContent = String(S.limit);
@@ -455,6 +562,7 @@
 
     var ftThisFrame = worldScrollRateFtPerSec(st.speed) * dt;
     st.worldScroll += ftThisFrame * PX_PER_FT;
+    updateWeatherParticles(st, dt);
 
     // score trickle by distance
     var milestone = Math.floor(st.worldScroll / 40);
@@ -633,8 +741,9 @@
     ctx.closePath();
   }
 
-  function drawStopSign(x, y, scale){
+  function drawStopSign(x, y, scale, alpha){
     ctx.save();
+    ctx.globalAlpha = alpha === undefined ? 1 : alpha;
     ctx.translate(x,y);
     ctx.scale(scale,scale);
     ctx.fillStyle = '#8a7a5c';
@@ -752,8 +861,8 @@
       var sgz = st.signs[s];
       if (sgz.state !== 'approaching') continue;
       var mph = st.speed;
-      var rFt = reactionDistFt(mph);
-      var bFt = brakingDistFt(mph);
+      var rFt = reactionDistFt(mph, st);
+      var bFt = brakingDistFt(mph, st);
       var lineWorldY = sgz.stopLineWorldY;
       var brakeStartWorld = lineWorldY - bFt;
       var reactStartWorld = brakeStartWorld - rFt;
@@ -795,7 +904,11 @@
     for (var sf=0; sf<st.signs.length; sf++){
       var lsy = worldToScreenY(st.signs[sf].stopLineWorldY, st.worldScroll, playerScreenY);
       if (lsy > roadTop-140 && lsy < roadTop+roadH+140){
-        drawStopSign(roadX+roadW+16, lsy, depthScale(lsy) * 1.15);
+        var signAlpha = 1;
+        if (st.weather.fog && lsy < Math.min(H*0.28, 160) + 24){
+          signAlpha = 0.12 + Math.max(0, 1 - (lsy / (Math.min(H*0.28, 160) + 24))) * 0.38;
+        }
+        drawStopSign(roadX+roadW+16, lsy, depthScale(lsy) * 1.15, signAlpha);
       }
     }
 
@@ -811,6 +924,32 @@
     drawCarTop(roadX+roadW/2, playerScreenY, 1, '#2f5c8a');
 
     ctx.restore(); // clip road area
+
+    // --- weather overlay ---
+    if (st.weather.fog || st.weather.snow){
+      var fogHeight = Math.min(H*0.28, 160);
+      var fogGrad = ctx.createLinearGradient(0,0,0,fogHeight);
+      fogGrad.addColorStop(0,'rgba(248,250,252,0.35)');
+      fogGrad.addColorStop(0.65,'rgba(224,230,236,0.20)');
+      fogGrad.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle = fogGrad;
+      ctx.fillRect(0,0,W,fogHeight);
+    }
+    if (st.weather.rain || st.weather.snow){
+      ctx.save();
+      ctx.globalAlpha = 1;
+      st.weatherParticles.forEach(function(p){
+        if (p.kind === 'snow'){
+          ctx.fillStyle = 'rgba(255,255,255,' + p.alpha + ')';
+          ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+        } else {
+          ctx.strokeStyle = 'rgba(142,192,236,' + p.alpha + ')';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x - p.drift*1.6, p.y + 10); ctx.stroke();
+        }
+      });
+      ctx.restore();
+    }
 
     // --- mirror inset ---
     ctx.save();
