@@ -199,7 +199,7 @@
       <div class="subhead">Speed doesn't just change how fast you get there — it changes how far it takes to stop. Feel it in your hands.</div>
       <div class="rulesCard">
         <div class="ruleRow"><span class="ruleIcon ic-mirror">◐</span><span>Drive too slow for too long and the car behind closes in. Keep pace with traffic.</span></div>
-        <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 mph — before the line. Rolling through counts as a miss.</span></div>
+        <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 km/h — before the line. Rolling through counts as a miss.</span></div>
         <div class="ruleRow"><span class="ruleIcon ic-paint">▬</span><span>Watch the road paint: yellow-green is your reaction distance, red is your braking distance. Brake before the red zone, not inside it.</span></div>
       </div>
       <div class="modifierStack">
@@ -224,7 +224,7 @@
       <div class="titleSign" style="font-size:28px;">Drive Ended</div>
       <div class="statGrid">
         <div>Final score<b id="finalScore">0</b></div>
-        <div>Distance driven<b id="finalDist">0 ft</b></div>
+        <div>Distance driven<b id="finalDist">0 m</b></div>
         <div>Perfect stops<b id="finalPerfect">0</b></div>
         <div>Signs run<b id="finalFailed">0</b></div>
       </div>
@@ -242,10 +242,10 @@
       <div id="speedo">
         <div>
           <div class="sv" id="speedVal">0</div>
-          <div class="su">mph</div>
+          <div class="su">km/h</div>
         </div>
         <div id="distReadout">
-          <div class="su" id="distVal" style="color:#8d9096;">0 ft</div>
+          <div class="su" id="distVal" style="color:#8d9096;">0 m</div>
           <div class="su" style="color:#5b5d61;">traveled</div>
         </div>
       </div>
@@ -515,7 +515,7 @@
     buildWeatherParticles(S);
     updateLives();
     scoreVal.textContent = '0';
-    limitVal.textContent = String(S.limit);
+    limitVal.textContent = String(Math.round(S.limit * 1.60934));
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
     S.running = true;
@@ -528,7 +528,7 @@
     S.over = true;
     document.getElementById('overReason').textContent = reason;
     document.getElementById('finalScore').textContent = Math.floor(S.score);
-    document.getElementById('finalDist').textContent = Math.floor(S.worldScroll).toLocaleString()+' ft';
+    document.getElementById('finalDist').textContent = Math.floor(S.worldScroll * 0.3048).toLocaleString()+' m';
     document.getElementById('finalPerfect').textContent = String(S.perfectCount);
     document.getElementById('finalFailed').textContent = String(S.failedCount);
     gameOverScreen.classList.remove('hidden');
@@ -619,7 +619,7 @@
         else if (distToLine <= 60){ acc='Good stop'; st.score += 90; beep(660,0.14,'sine',0.06); }
         else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
         else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
-        showToast(acc + ' · ' + Math.round(distToLine) + ' ft to spare', distToLine<=60?'good':null);
+        showToast(acc + ' · ' + Math.round(distToLine * 0.3048) + ' m to spare', distToLine<=60?'good':null);
         st.nextStopSpawn = st.worldScroll + 550 + Math.random()*450;
       }
     }
@@ -635,10 +635,12 @@
 
     // hud text
     scoreVal.textContent = Math.floor(st.score).toLocaleString();
-    speedVal.textContent = Math.round(st.speed);
-    speedVal.classList.toggle('over', st.speed > st.limit + 5);
-    distVal.textContent = Math.floor(st.worldScroll).toLocaleString() + ' ft';
-    limitVal.textContent = String(st.limit);
+    var displayedSpeed = Math.round(st.speed * 1.60934);
+    var displayedLimit = Math.round(st.limit * 1.60934);
+    speedVal.textContent = displayedSpeed;
+    speedVal.classList.toggle('over', displayedSpeed > displayedLimit + Math.round(5 * 1.60934));
+    distVal.textContent = Math.floor(st.worldScroll * 0.3048).toLocaleString() + ' m';
+    limitVal.textContent = String(displayedLimit);
   }
 
   // ---------- render helpers ----------
@@ -755,7 +757,7 @@
     ctx.fillText('SPEED', 0, -22);
     ctx.fillText('LIMIT', 0, -16);
     ctx.font = '700 13px Oswald, sans-serif';
-    ctx.fillText(String(value), 0, -3);
+    ctx.fillText(String(Math.round(value * 1.60934)), 0, -3);
     ctx.restore();
   }
 
@@ -852,7 +854,7 @@
         ctx.fillStyle = 'rgba(20,21,24,.55)';
         var midBrake = (brakeStartSY+lineSY)/2;
         if (midBrake > roadTop && midBrake < roadTop+roadH){
-          drawPaintLabel(roadX+roadW/2, midBrake, 'BRAKE · '+Math.round(bFt)+' ft');
+          drawPaintLabel(roadX+roadW/2, midBrake, 'BRAKE · '+Math.round(bFt * 0.3048)+' m');
         }
       }
       ctx.restore();
