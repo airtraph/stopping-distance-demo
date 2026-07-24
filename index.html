@@ -276,12 +276,15 @@
 
   function getEffectiveFriction(st){
     var friction = FRICTION;
-    if (st && (st.weather.rain || st.weather.snow)) friction *= 0.33;
+    if (st && st.weather.snow) friction *= 0.33;
+    else if (st && st.weather.rain) friction *= 0.45;
     return friction;
   }
   function reactionDistFt(mph, st){
     var reactionTime = REACTION_TIME;
-    if (st && (st.weather.fog || st.weather.snow)) reactionTime *= 0.35;
+    if (st && st.weather.fog) reactionTime *= 1.35;
+    if (st && st.weather.rain) reactionTime *= 1.15;
+    if (st && st.weather.snow) reactionTime *= 1.45;
     return MPH_TO_FTPS * mph * reactionTime;
   }
   function brakingDistFt(mph, st){
@@ -615,7 +618,7 @@
         sg.state = 'passed';
         sg.stopDistFt = distToLine;
         var acc;
-        if (distToLine <= 15){ acc='PERFECT STOP'; st.score += 150; st.perfectCount++; beep(880,0.12,'sine',0.07); setTimeout(function(){beep(1180,0.12,'sine',0.06);},90); }
+        if (distToLine <= 30){ acc='PERFECT STOP'; st.score += 150; st.perfectCount++; beep(880,0.12,'sine',0.07); setTimeout(function(){beep(1180,0.12,'sine',0.06);},90); }
         else if (distToLine <= 60){ acc='Good stop'; st.score += 90; beep(660,0.14,'sine',0.06); }
         else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
         else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
@@ -833,9 +836,10 @@
       var mph = st.speed;
       var rFt = reactionDistFt(mph, st);
       var bFt = brakingDistFt(mph, st);
+      var totalStop = totalStopFt(mph, st) * 1.15;
       var lineWorldY = sgz.stopLineWorldY;
       var brakeStartWorld = lineWorldY - bFt;
-      var reactStartWorld = brakeStartWorld - rFt;
+      var reactStartWorld = lineWorldY - totalStop;
 
       var lineSY = worldToScreenY(lineWorldY, st.worldScroll, playerScreenY);
       var brakeStartSY = worldToScreenY(brakeStartWorld, st.worldScroll, playerScreenY);
@@ -854,7 +858,7 @@
         ctx.fillStyle = 'rgba(20,21,24,.55)';
         var midBrake = (brakeStartSY+lineSY)/2;
         if (midBrake > roadTop && midBrake < roadTop+roadH){
-          drawPaintLabel(roadX+roadW/2, midBrake, 'BRAKE · '+Math.round(bFt * 0.3048)+' m');
+          drawPaintLabel(roadX+roadW/2, midBrake, 'STOP · '+Math.round(totalStop * 0.3048)+' m');
         }
       }
       ctx.restore();
