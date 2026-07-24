@@ -880,7 +880,7 @@
       var lsy = worldToScreenY(st.signs[sf].stopLineWorldY, st.worldScroll, playerScreenY);
       if (lsy > roadTop-140 && lsy < roadTop+roadH+140){
         var signAlpha = 1;
-        if (st.weather.fog && lsy < Math.min(H*0.98, 620) + 24){
+        if ((st.weather.fog || st.weather.snow) && lsy < Math.min(H*0.98, 620) + 24){
           signAlpha = 0.002 + Math.max(0, 1 - (lsy / (Math.min(H*0.98, 620) + 24))) * 0.11;
         }
         drawStopSign(roadX+roadW+16, lsy, depthScale(lsy) * 1.15, signAlpha);
