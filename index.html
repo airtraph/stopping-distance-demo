@@ -373,7 +373,6 @@
       nextStopSpawn: 420,
       nextLimitSpawn: 900,
       nextDecorAt: 0,
-      tailgaterGap: 150,
       shake:0,
       toastTimer:0,
       lastMilestone:0,
@@ -621,35 +620,10 @@
         else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
         else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
         showToast(acc + ' · ' + Math.round(distToLine) + ' ft to spare', distToLine<=60?'good':null);
-        st.tailgaterGap = 180;
         st.nextStopSpawn = st.worldScroll + 550 + Math.random()*450;
       }
     }
     st.signs = st.signs.filter(function(s){ return (s.stopLineWorldY - st.worldScroll) > -140; });
-
-    // tailgater
-    var flowMin = Math.max(14, st.limit - 15);
-    if (!nearActiveStop){
-      if (st.speed < flowMin){
-        st.tailgaterGap -= (flowMin - st.speed) * 0.85 * dt;
-      } else {
-        st.tailgaterGap += (2 + (st.speed - flowMin)*0.18) * dt;
-      }
-    } else {
-      st.tailgaterGap += 3.2 * dt; // lenient while navigating a stop
-    }
-    if (st.tailgaterGap > 220) st.tailgaterGap = 220;
-    if (st.tailgaterGap <= 0){
-      st.tailgaterGap = 140;
-      st.lives -= 1;
-      updateLives();
-      showToast('Too slow — rear-ended!', 'bad');
-      flashScreen();
-      st.shake = 0.4;
-      beep(100,0.4,'square',0.09);
-      st.score = Math.max(0, st.score - 30);
-      if (st.lives <= 0){ endGame('Rear-ended for driving too slowly'); return; }
-    }
 
     if (st.shake > 0) st.shake = Math.max(0, st.shake - dt);
     if (st.toastTimer > 0){
@@ -909,20 +883,6 @@
       drawLimitPost(roadX-18, lsy2, depthScale(lsy2), lsig.value);
     }
 
-    // rear-ender car approaches from the bottom of the screen and closes in from behind
-    var gapN = Math.max(0, Math.min(1, st.tailgaterGap/220));
-    var tailReveal = 1 - gapN;
-    if (tailReveal > 0.02){
-      var tailScale = 0.5 + tailReveal*0.55;
-      var tailY = roadTop + roadH + 700 - tailReveal*(roadH - 120);
-      var tailX = roadX + roadW/2;
-      var tailOffset = 28 + tailReveal*18;
-      ctx.save();
-      ctx.globalAlpha = 0.2 + tailReveal*0.8;
-      drawCarTop(tailX, tailY + tailOffset, tailScale, tailReveal > 0.7 ? '#c1272d' : '#454850');
-      ctx.restore();
-    }
-
     // player car
     drawCarTop(roadX+roadW/2, playerScreenY, 1, '#2f5c8a');
 
@@ -973,11 +933,6 @@
     var mRoadW = mw*0.5, mRoadX=(mw-mRoadW)/2;
     ctx.fillStyle = '#2b2e33';
     ctx.fillRect(mRoadX, mh*0.5, mRoadW, mh*0.55);
-    // tailgater car, scaled by inverse gap
-    var gapN = Math.max(0, Math.min(1, st.tailgaterGap/220));
-    var tScale = 0.32 + (1-gapN)*0.85;
-    var tY = mh*0.66 + (1-gapN)*mh*0.28;
-    drawCarTop(mw/2, tY, tScale, gapN<0.28 ? '#c1272d' : '#454850');
     ctx.restore();
     ctx.restore();
     // chrome bezel
