@@ -178,6 +178,7 @@
   .pedal .pIcon{ font-size:20px; }
   #brakeBtn{ background:linear-gradient(180deg,#d33c3c,#8f1c21); }
   #gasBtn{ background:linear-gradient(180deg,#3fae5c,#1f6f38); }
+  #modifiersBtn{ background:linear-gradient(180deg,#4a90e2,#1c4f8d); }
   .pedal.pressed{ transform:translateY(5px); box-shadow:0 0 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15); filter:brightness(1.15); }
 
   #flash{
@@ -262,6 +263,7 @@
     <div class="dashRow2">
       <div class="pedal" id="brakeBtn"><span class="pIcon">⛔</span>Brake</div>
       <div class="pedal" id="gasBtn"><span class="pIcon">▲</span>Gas</div>
+      <button class="pedal" id="modifiersBtn"><span class="pIcon">⟲</span>Modifiers</button>
     </div>
   </div>
 </div>
@@ -329,6 +331,7 @@
   var gameOverScreen = document.getElementById('gameOverScreen');
   var startBtn = document.getElementById('startBtn');
   var restartBtn = document.getElementById('restartBtn');
+  var modifiersBtn = document.getElementById('modifiersBtn');
   var selectedWeather = {fog:false, rain:false, snow:false};
   var modifierCards = Array.prototype.slice.call(document.querySelectorAll('.modifierCard'));
 
@@ -550,8 +553,16 @@
     gameOverScreen.classList.remove('hidden');
   }
 
+  function showStartScreen(){
+    if (S) S.running = false;
+    toastEl.classList.remove('show');
+    startScreen.classList.remove('hidden');
+    gameOverScreen.classList.add('hidden');
+  }
+
   startBtn.addEventListener('click', function(){ try{ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} startGame(); });
   restartBtn.addEventListener('click', startGame);
+  modifiersBtn.addEventListener('click', showStartScreen);
 
   // ---------- update ----------
   function update(dt){
