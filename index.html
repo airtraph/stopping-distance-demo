@@ -902,14 +902,18 @@
     }
     // draw the sign post for every sign still in view, regardless of state
     for (var sf=0; sf<st.signs.length; sf++){
-      var lsy = worldToScreenY(st.signs[sf].stopLineWorldY, st.worldScroll, playerScreenY);
+      var sign = st.signs[sf];
+      var lsy = worldToScreenY(sign.stopLineWorldY, st.worldScroll, playerScreenY);
       if (lsy > roadTop-140 && lsy < roadTop+roadH+140){
         var signAlpha = 1;
         if (st.weather.fog || st.weather.snow){
-          var fadeCenter = H * 0.58;
-          var fadeDistance = H * 0.9;
-          var fadeProgress = Math.max(0, 1 - Math.abs(lsy - fadeCenter) / fadeDistance);
-          signAlpha = 0.18 + fadeProgress * 0.82;
+          var distanceFt = Math.max(0, sign.stopLineWorldY - st.worldScroll);
+          var distanceM = distanceFt * 0.3048;
+          var revealDistanceM = 65;
+          var fadeStartM = revealDistanceM + 140;
+          var fadeT = Math.max(0, Math.min(1, (distanceM - revealDistanceM) / (fadeStartM - revealDistanceM)));
+          signAlpha = 0.04 + (1 - fadeT) * 0.96;
+          if (distanceM <= revealDistanceM) signAlpha = 1;
         }
         drawStopSign(roadX+roadW+16, lsy, depthScale(lsy) * 1.15, signAlpha);
       }
