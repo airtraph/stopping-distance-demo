@@ -208,7 +208,6 @@
       <div class="titleSign">Stopping<br>Distance</div>
       <div class="subhead">Speed doesn't just change how fast you get there — it changes how far it takes to stop. Feel it in your hands.</div>
       <div class="rulesCard">
-        <div class="ruleRow"><span class="ruleIcon ic-mirror">◐</span><span>Drive too slow for too long and the car behind closes in. Keep pace with traffic.</span></div>
         <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 km/h — before the line. Rolling through counts as a miss.</span></div>
         <div class="ruleRow"><span class="ruleIcon ic-paint">▬</span><span>Watch the road paint: yellow-green is your reaction distance, red is your braking distance. Brake before the red zone, not inside it.</span></div>
       </div>
@@ -384,7 +383,7 @@
   function freshState(){
     return {
       running:false, over:false,
-      speed:0, limit:60,
+      speed:0, limit:80,
       worldScroll:0,
       score:0, lives:3,
       gas:false, brake:false,
@@ -430,7 +429,7 @@
   function spawnLimitSign(st){
     st.limitSigns.push({
       worldY: st.worldScroll + 300 + Math.random()*200,
-      value:60,
+      value:80,
       applied:false
     });
   }
@@ -909,11 +908,8 @@
         if (st.weather.fog || st.weather.snow){
           var distanceFt = Math.max(0, sign.stopLineWorldY - st.worldScroll);
           var distanceM = distanceFt * 0.3048;
-          var revealDistanceM = 65;
-          var fadeStartM = revealDistanceM + 140;
-          var fadeT = Math.max(0, Math.min(1, (distanceM - revealDistanceM) / (fadeStartM - revealDistanceM)));
-          signAlpha = 0.04 + (1 - fadeT) * 0.96;
-          if (distanceM <= revealDistanceM) signAlpha = 1;
+          var revealDistanceM = 60;
+          signAlpha = distanceM <= revealDistanceM ? 1 : 0;
         }
         drawStopSign(roadX+roadW+16, lsy, depthScale(lsy) * 1.15, signAlpha);
       }
