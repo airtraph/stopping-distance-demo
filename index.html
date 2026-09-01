@@ -377,9 +377,16 @@
     canvas.style.height = H+'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
     if (S) buildWeatherParticles(S);
+    if (S && !S.running) render();
   }
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', function(){ setTimeout(resize,50); });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resize);
+  }
+  if (window.ResizeObserver) {
+    new ResizeObserver(resize).observe(stage);
+  }
   resize();
 
   // ---------- game state ----------
@@ -535,6 +542,8 @@
     S = freshState();
     S.weather = getWeatherSelection();
     buildWeatherParticles(S);
+    toastEl.className = '';
+    toastEl.textContent = '';
     updateLives();
     scoreVal.textContent = '0';
     limitVal.textContent = String(displayLimitValue(S.limit));
@@ -1006,6 +1015,9 @@
       {id:3,side:-1,type:'tree',worldY:340,jitter:8,hue:0.6}
     ];
     render();
+    requestAnimationFrame(resize);
+    window.addEventListener('load', resize, {once:true});
+    window.addEventListener('pageshow', resize);
   })();
 })();
 </script>
