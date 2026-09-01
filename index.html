@@ -9,7 +9,7 @@
   gtag('js', new Date());
 
   gtag('config', 'G-RVJKYHD59T');
-</script>s
+</script>
 <meta charset="UTF-8">
 <title>Stopping Distance — a driving-physics game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -347,6 +347,21 @@
     };
   }
 
+  function getModifierSummary(weatherState){
+    var active = [];
+    if (weatherState && weatherState.fog) active.push('fog');
+    if (weatherState && weatherState.rain) active.push('rain');
+    if (weatherState && weatherState.snow) active.push('snow');
+    return active.length ? active.join(',') : 'none';
+  }
+
+  function trackGameEvent(eventName, params){
+    if (!window.gtag) return;
+    var payload = Object.assign({}, params || {});
+    payload.page = 'stopping_distance';
+    window.gtag('event', eventName, payload);
+  }
+
   function syncModifierButtons(){
     modifierCards.forEach(function(card){
       var key = card.getAttribute('data-modifier');
@@ -361,6 +376,11 @@
       selectedWeather = {fog:false, rain:false, snow:false};
       if (nextValue) selectedWeather[key] = true;
       syncModifierButtons();
+      trackGameEvent('modifier_selected', {
+        modifier: key,
+        selected: nextValue ? 'on' : 'off',
+        modifiers: getModifierSummary(selectedWeather)
+      });
     });
   });
   syncModifierButtons();
@@ -539,9 +559,12 @@
   });
 
   // ---------- lifecycle ----------
-  function startGame(){
+  function startGame(source){
+    source = source || 'start';
     S = freshState();
     S.weather = getWeatherSelection();
+    S.attemptNumber = (window.__stoppingDistanceAttemptNumber || 0) + 1;
+    window.__stoppingDistanceAttemptNumber = S.attemptNumber;
     buildWeatherParticles(S);
     toastEl.className = '';
     toastEl.textContent = '';
@@ -551,6 +574,18 @@
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
     S.running = true;
+    var attemptMeta = {
+      attempt_number: S.attemptNumber,
+      source: source,
+      modifiers: getModifierSummary(S.weather),
+      starting_limit: S.limit,
+      starting_speed: S.speed
+    };
+    trackGameEvent('start_game', attemptMeta);
+    if (source === 'restart') {
+      trackGameEvent('game_restart', attemptMeta);
+    }
+    trackGameEvent('attempt_started', attemptMeta);
     lastTs = performance.now();
     requestAnimationFrame(loop);
   }
@@ -564,6 +599,16 @@
     document.getElementById('finalPerfect').textContent = String(S.perfectCount);
     document.getElementById('finalFailed').textContent = String(S.failedCount);
     gameOverScreen.classList.remove('hidden');
+    trackGameEvent('game_end', {
+      attempt_number: S.attemptNumber,
+      reason: reason,
+      final_score: Math.floor(S.score),
+      final_distance_m: Math.floor(S.worldScroll * 0.3048),
+      perfect_stops: S.perfectCount,
+      failed_stops: S.failedCount,
+      modifiers: getModifierSummary(S.weather),
+      lives_left: S.lives
+    });
   }
 
   function showStartScreen(){
@@ -573,8 +618,8 @@
     gameOverScreen.classList.add('hidden');
   }
 
-  startBtn.addEventListener('click', function(){ try{ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} startGame(); });
-  restartBtn.addEventListener('click', startGame);
+  startBtn.addEventListener('click', function(){ try{ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} startGame('start'); });
+  restartBtn.addEventListener('click', function(){ startGame('restart'); });
   modifiersBtn.addEventListener('click', showStartScreen);
 
   // ---------- update ----------
@@ -646,6 +691,13 @@
         st.lives -= 1;
         st.failedCount += 1;
         updateLives();
+        trackGameEvent('stop_sign_failed', {
+          attempt_number: st.attemptNumber,
+          distance_to_line_ft: distToLine,
+          distance_to_line_m: Math.round(distToLine * 0.3048),
+          speed_kph: Math.round(st.speed),
+          modifiers: getModifierSummary(st.weather)
+        });
         showToast('Ran the stop sign!', 'bad');
         flashScreen();
         beep(140,0.35,'sawtooth',0.08);
@@ -659,6 +711,14 @@
         else if (distToLine <= 60){ acc='Good stop'; st.score += 90; beep(660,0.14,'sine',0.06); }
         else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
         else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
+        trackGameEvent('stop_sign_passed', {
+          attempt_number: st.attemptNumber,
+          stop_quality: acc,
+          distance_to_line_ft: distToLine,
+          distance_to_line_m: Math.round(distToLine * 0.3048),
+          speed_kph: Math.round(st.speed),
+          modifiers: getModifierSummary(st.weather)
+        });
         showToast(acc + ' · ' + Math.round(distToLine * 0.3048) + ' m to spare', distToLine<=60?'good':null);
         st.nextStopSpawn = st.worldScroll + 550 + Math.random()*450;
       }
