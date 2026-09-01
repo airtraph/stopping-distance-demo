@@ -894,11 +894,20 @@
         ctx.restore();
       }
 
-      // stop line stays highly visible in bad weather so drivers can still react
-      if (lineSY > roadTop-20 && lineSY < roadTop+roadH+20){
-        ctx.fillStyle = st.weather.fog || st.weather.snow ? '#fffaf1' : '#f5f3ec';
+      var stopLineAlpha = 1;
+      if (st.weather.fog) {
+        var distanceFt = Math.max(0, sgz.stopLineWorldY - st.worldScroll);
+        var distanceM = distanceFt * 0.3048;
+        var revealDistanceM = 60;
+        stopLineAlpha = distanceM <= revealDistanceM ? 1 : 0;
+      } else if (st.weather.snow) {
+        stopLineAlpha = 0;
+      }
+
+      if (lineSY > roadTop-20 && lineSY < roadTop+roadH+20 && stopLineAlpha > 0){
+        ctx.fillStyle = st.weather.fog ? '#fffaf1' : '#f5f3ec';
         ctx.shadowColor = 'rgba(0,0,0,0.45)';
-        ctx.shadowBlur = st.weather.fog || st.weather.snow ? 10 : 0;
+        ctx.shadowBlur = st.weather.fog ? 10 : 0;
         ctx.fillRect(roadX+6, lineSY-3, roadW-12, 6);
         ctx.shadowBlur = 0;
       }
