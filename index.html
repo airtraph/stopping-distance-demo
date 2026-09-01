@@ -47,7 +47,7 @@
   #app{
     position:fixed; inset:0;
     display:flex; flex-direction:column;
-    height:100dvh; width:100vw;
+    height:100%; width:100vw;
     background:var(--asphalt-dark);
   }
   #stage{
@@ -94,9 +94,10 @@
 
   .overlayScreen{
     position:absolute; inset:0; z-index:20;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:safe center;
     background:radial-gradient(120% 100% at 50% 0%, #2e3742 0%, #14171b 70%);
-    padding:24px; text-align:center; gap:14px;
+    padding:24px; text-align:center; gap:14px; overflow-y:auto; touch-action:pan-y;
+    overscroll-behavior:contain;
   }
   .overlayScreen.hidden{ display:none; }
   .eyebrow{
