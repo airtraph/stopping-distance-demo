@@ -110,8 +110,8 @@
     box-shadow:0 8px 24px rgba(0,0,0,.35);
   }
   .ruleRow{ display:flex; gap:10px; align-items:flex-start; font:500 12.5px/1.4 'Inter',sans-serif; }
-  .ruleIcon{ flex:0 0 auto; width:22px; height:22px; display:flex; align-items:center; justify-content:center;
-    border-radius:5px; font-size:13px; }
+  .ruleIcon{ flex:0 0 auto; width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+    border-radius:5px; font-size:18px; }
   .ic-mirror{ background:var(--chrome-2); color:#111;}
   .modifierStack{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; width:min(320px, 100%); }
   .modifierCard{
@@ -223,9 +223,9 @@
       <div class="subhead">Speed doesn't just change how fast you get there — it changes how far it takes to stop. weather does the same! </div>
       <div class="rulesCard">
         <div class="ruleRow"><span class="ruleIcon">☀️</span><span><b>Clear:</b> Normal visibility and dry-road braking.</span></div>
-        <div class="ruleRow"><span class="ruleIcon">☁️</span><span><b>Fog:</b> Signs are harder to see, and reaction distance increases by 35%.</span></div>
-        <div class="ruleRow"><span class="ruleIcon">🌧️</span><span><b>Rain:</b> Reaction distance increases by 15%, and wet roads reduce grip, increasing braking distance.</span></div>
-        <div class="ruleRow"><span class="ruleIcon">❄️</span><span><b>Snow:</b> Signs are harder to see, reaction distance increases by 45%, and low grip makes braking harder.</span></div>
+        <div class="ruleRow"><span class="ruleIcon">☁️</span><span><b>Fog:</b> Fog makes the signs harder to see, giving you less time to react.</span></div>
+        <div class="ruleRow"><span class="ruleIcon">🌧️</span><span><b>Rain:</b> rainy/wet roads reduce grip, making braking more difficult.</span></div>
+        <div class="ruleRow"><span class="ruleIcon">❄️</span><span><b>Snow:</b> Snow makes the signs harder to see, covers the stop line, and reduces grip, making braking more difficult.</span></div>
       </div>
       <div class="modifierStack">
         <button type="button" class="modifierCard" data-modifier="fog">
@@ -322,7 +322,7 @@
   function getEffectiveFriction(st){
     var friction = FRICTION;
     if (st && st.weather.snow) friction *= 0.33;
-    else if (st && st.weather.rain) friction *= 0.45;
+    else if (st && st.weather.rain) friction *= 0.5;
     return friction;
   }
   function reactionDistFt(kph, st){
