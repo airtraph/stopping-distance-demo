@@ -218,9 +218,9 @@
     <div id="toast"></div>
 
     <div id="startScreen" class="overlayScreen">
-      <div class="eyebrow">A physics-of-driving game</div>
+      <div class="eyebrow">A Driving physics Game</div>
       <div class="titleSign">Stopping<br>Distance</div>
-      <div class="subhead">Speed doesn't just change how fast you get there — it changes how far it takes to stop. weather does the same! </div>
+      <div class="subhead">Speed doesn't just change how fast you get there — it changes how long it takes to stop. Weather does the same! </div>
       <div class="rulesCard">
         <div class="ruleRow"><span class="ruleIcon">☀️</span><span><b>Clear:</b> Normal visibility and dry-road braking.</span></div>
         <div class="ruleRow"><span class="ruleIcon">☁️</span><span><b>Fog:</b> Fog makes the signs harder to see, giving you less time to react.</span></div>
@@ -317,6 +317,7 @@
   var COAST_KPHPS = 4.2 * 1.60934; // ~6.8 km/h/s
   var MAX_SPEED = 100;
   var STOP_EPS = 1;             // km/h considered "stopped"
+  var CAR_FRONT_OFFSET_FT = 30; // front edge of the player car, relative to its center
   var PX_PER_FT = 1;            // world scale: 1 ft == 1 world px
 
   function getEffectiveFriction(st){
@@ -807,7 +808,7 @@
     for (var i=0;i<st.signs.length;i++){
       var sg = st.signs[i];
       if (sg.state !== 'approaching') continue;
-      var distToLine = sg.stopLineWorldY - st.worldScroll;
+      var distToLine = sg.stopLineWorldY - st.worldScroll - CAR_FRONT_OFFSET_FT;
       if (distToLine < 450 && distToLine > -30) nearActiveStop = true;
 
       if (distToLine <= 0){
