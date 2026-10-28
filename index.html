@@ -69,16 +69,11 @@
   }
   #scoreLabel{ font:600 9px/1 'Oswald',sans-serif; letter-spacing:.12em; color:#b9bcc2; text-transform:uppercase; }
   #scoreVal{ font:700 20px/1.3 'Orbitron',sans-serif; color:var(--paper); }
-  #livesBox{ display:flex; gap:5px; padding-top:4px; }
-  .life{
-    width:16px; height:16px;
-    background:var(--safety-red);
-    clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%);
-    border:1.5px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.4);
-    transition:background .2s, opacity .2s, transform .2s;
+  #stopProgress{
+    background:rgba(20,21,24,.55); border:1px solid rgba(255,255,255,.12);
+    border-radius:8px; padding:5px 10px; backdrop-filter:blur(2px);
+    color:var(--paper); font:700 12px/1.2 'Orbitron',sans-serif; white-space:nowrap;
   }
-  .life.lost{ background:#3a3b3e; border-color:#5a5b5e; opacity:.55; transform:scale(.85); }
-
   #toast{
     position:absolute; top:26%; left:50%; transform:translate(-50%,-8px);
     font:700 15px/1.2 'Oswald',sans-serif; letter-spacing:.04em; text-transform:uppercase;
@@ -142,6 +137,34 @@
   .statGrid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; max-width:280px; }
   .statGrid div{ font:500 12px/1.3 'Inter',sans-serif; color:#c7cad0; text-align:left; }
   .statGrid b{ display:block; font:700 20px/1.2 'Orbitron',sans-serif; color:var(--paper); }
+  .leaderboard{
+    width:min(340px,100%); background:rgba(245,243,236,.96); color:var(--ink);
+    border-radius:12px; padding:12px 14px; text-align:left;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+  .secondaryBtn{
+    font:700 14px/1 'Oswald',sans-serif; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--paper); background:linear-gradient(180deg,#565b63,#34383e);
+    border:2px solid #ffffff33; border-radius:10px; padding:12px 20px; cursor:pointer;
+    box-shadow:0 4px 0 #202226, 0 8px 14px rgba(0,0,0,.3);
+  }
+  .leaderboardDialog{ z-index:30; }
+  .nameEntryDialog{ z-index:40; }
+  .nameEntryForm{ display:flex; flex-direction:column; gap:12px; width:min(340px,100%); }
+  .nameEntryForm label{ color:var(--paper); font:500 14px/1.4 'Inter',sans-serif; }
+  .nameEntryForm input{ width:100%; padding:12px; border:2px solid #777; border-radius:8px; font:600 16px 'Inter',sans-serif; }
+  .nameEntryActions{ display:flex; justify-content:center; gap:10px; }
+  .leaderboardBoards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:min(520px,100%); }
+  .leaderboardBoards .leaderboard{ width:auto; padding:10px 12px; }
+  .leaderboardBoards .leaderboardTitle{ font-size:13px; }
+  @media(max-width:420px){ .leaderboardBoards{ grid-template-columns:1fr; } }
+  .leaderboardTitle{ font:700 15px/1.2 'Oswald',sans-serif; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+  .leaderboardList{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
+  .leaderboardRow{ display:grid; grid-template-columns:26px 1fr auto; gap:8px; align-items:center; font:500 12px/1.35 'Inter',sans-serif; }
+  .leaderboardRank{ color:#777; font-weight:700; }
+  .leaderboardName{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .leaderboardScore{ font:700 12px/1.2 'Orbitron',sans-serif; }
+  .leaderboardEmpty{ color:#666; font:500 12px/1.4 'Inter',sans-serif; }
 
   #dashboard{
     flex:0 0 auto; background:linear-gradient(180deg,#33363b,#202226);
@@ -198,9 +221,7 @@
         <div id="scoreLabel">Score</div>
         <div id="scoreVal">0</div>
       </div>
-      <div id="livesBox">
-        <div class="life"></div><div class="life"></div><div class="life"></div>
-      </div>
+      <div id="stopProgress" aria-live="polite">Signs 0 / 10</div>
     </div>
     <div id="toast"></div>
 
@@ -209,7 +230,7 @@
       <div class="titleSign">Stopping<br>Distance</div>
       <div class="subhead">Speed doesn't just change how fast you get there — it changes how far it takes to stop. Feel it in your hands.</div>
       <div class="rulesCard">
-        <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 km/h — before the line. Rolling through counts as a miss.</span></div>
+        <div class="ruleRow"><span class="ruleIcon ic-sign">!</span><span>Every stop sign needs a complete stop — 0 km/h — before the line. Rolling through counts as a miss, but still uses one of your 10 signs.</span></div>
         <div class="ruleRow"><span class="ruleIcon ic-paint">▬</span><span>Watch the road paint: yellow-green is your reaction distance, red is your braking distance. Brake before the red zone, not inside it.</span></div>
       </div>
       <div class="modifierStack">
@@ -226,19 +247,46 @@
           <span class="modifierTitle">Snow</span>
         </button>
       </div>
+      <button type="button" class="secondaryBtn viewLeaderboardBtn">View Leaderboard</button>
       <button class="bigBtn" id="startBtn">Start Driving</button>
     </div>
 
     <div id="gameOverScreen" class="overlayScreen hidden">
       <div class="eyebrow" id="overReason">Incident report</div>
-      <div class="titleSign" style="font-size:28px;">Drive Ended</div>
+      <div class="titleSign" id="gameOverTitle" style="font-size:28px;">Drive Ended</div>
       <div class="statGrid">
         <div>Final score<b id="finalScore">0</b></div>
         <div>Distance driven<b id="finalDist">0 m</b></div>
         <div>Perfect stops<b id="finalPerfect">0</b></div>
         <div>Signs run<b id="finalFailed">0</b></div>
       </div>
+      <button type="button" class="secondaryBtn viewLeaderboardBtn">View Leaderboard</button>
       <button class="bigBtn" id="restartBtn">Drive Again</button>
+    </div>
+
+    <div id="leaderboardScreen" class="overlayScreen leaderboardDialog hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardHeading">
+      <div class="eyebrow">Personal bests</div>
+      <div class="titleSign" id="leaderboardHeading" style="font-size:28px;">Leaderboards</div>
+      <div class="leaderboardBoards">
+        <section class="leaderboard" aria-label="None modifier top five"><div class="leaderboardTitle">None</div><ol class="leaderboardList" data-board="none"></ol></section>
+        <section class="leaderboard" aria-label="Fog modifier top five"><div class="leaderboardTitle">Fog</div><ol class="leaderboardList" data-board="fog"></ol></section>
+        <section class="leaderboard" aria-label="Rain modifier top five"><div class="leaderboardTitle">Rain</div><ol class="leaderboardList" data-board="rain"></ol></section>
+        <section class="leaderboard" aria-label="Snow modifier top five"><div class="leaderboardTitle">Snow</div><ol class="leaderboardList" data-board="snow"></ol></section>
+      </div>
+      <button type="button" class="secondaryBtn" id="closeLeaderboardBtn">Back</button>
+    </div>
+
+    <div id="nameEntryScreen" class="overlayScreen nameEntryDialog hidden" role="dialog" aria-modal="true" aria-labelledby="nameEntryHeading">
+      <div class="eyebrow">New high score</div>
+      <div class="titleSign" id="nameEntryHeading" style="font-size:28px;">You made the leaderboard!</div>
+      <form class="nameEntryForm" id="nameEntryForm">
+        <label for="leaderboardNameInput" id="nameEntryPrompt">Enter your name:</label>
+        <input id="leaderboardNameInput" name="leaderboardName" type="text" maxlength="20" autocomplete="nickname" required>
+        <div class="nameEntryActions">
+          <button type="submit" class="bigBtn">Save Score</button>
+          <button type="button" class="secondaryBtn" id="skipNameBtn">Skip</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -327,17 +375,128 @@
   var limitVal = document.getElementById('limitVal');
   var toastEl = document.getElementById('toast');
   var flashEl = document.getElementById('flash');
-  var livesBox = document.getElementById('livesBox');
-  var lifeEls = livesBox.querySelectorAll('.life');
+  var stopProgress = document.getElementById('stopProgress');
   var brakeBtn = document.getElementById('brakeBtn');
   var gasBtn = document.getElementById('gasBtn');
   var startScreen = document.getElementById('startScreen');
   var gameOverScreen = document.getElementById('gameOverScreen');
+  var leaderboardScreen = document.getElementById('leaderboardScreen');
+  var nameEntryScreen = document.getElementById('nameEntryScreen');
+  var nameEntryForm = document.getElementById('nameEntryForm');
+  var leaderboardNameInput = document.getElementById('leaderboardNameInput');
+  var nameEntryPrompt = document.getElementById('nameEntryPrompt');
+  var gameOverTitle = document.getElementById('gameOverTitle');
   var startBtn = document.getElementById('startBtn');
   var restartBtn = document.getElementById('restartBtn');
+  var closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+  var skipNameBtn = document.getElementById('skipNameBtn');
+  var viewLeaderboardBtns = Array.prototype.slice.call(document.querySelectorAll('.viewLeaderboardBtn'));
   var modifiersBtn = document.getElementById('modifiersBtn');
   var selectedWeather = {fog:false, rain:false, snow:false};
   var modifierCards = Array.prototype.slice.call(document.querySelectorAll('.modifierCard'));
+  var LEADERBOARD_KEY = 'stoppingDistanceLeaderboardV1';
+  var REQUIRED_STOPS = 10;
+  var LEADERBOARD_MODIFIERS = ['none','fog','rain','snow'];
+  var pendingLeaderboardEntry = null;
+
+  function getLeaderboard(){
+    try{
+      var saved = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]');
+      if (!Array.isArray(saved)) return [];
+      return saved.filter(function(entry){
+        return entry && typeof entry.name === 'string' && Number.isFinite(entry.score);
+      }).map(function(entry){
+        var modifier = LEADERBOARD_MODIFIERS.indexOf(entry.modifier) >= 0 ? entry.modifier : 'none';
+        return {name:entry.name, score:Number(entry.score), date:Number(entry.date)||0, modifier:modifier};
+      }).sort(function(a,b){ return b.score-a.score || a.date-b.date; });
+    }catch(e){ return []; }
+  }
+
+  function renderLeaderboards(){
+    var entries = getLeaderboard();
+    var lists = leaderboardScreen.querySelectorAll('.leaderboardList[data-board]');
+    Array.prototype.forEach.call(lists,function(listEl){
+      var boardEntries = entries.filter(function(entry){ return entry.modifier === listEl.getAttribute('data-board'); }).slice(0,5);
+      listEl.textContent = '';
+      if (!boardEntries.length){
+        var empty = document.createElement('li');
+        empty.className = 'leaderboardEmpty';
+        empty.textContent = 'No scores yet';
+        listEl.appendChild(empty);
+        return;
+      }
+      boardEntries.forEach(function(entry,index){
+        var row = document.createElement('li');
+        row.className = 'leaderboardRow';
+        var rank = document.createElement('span');
+        rank.className = 'leaderboardRank';
+        rank.textContent = String(index+1) + '.';
+        var name = document.createElement('span');
+        name.className = 'leaderboardName';
+        name.textContent = entry.name;
+        var score = document.createElement('span');
+        score.className = 'leaderboardScore';
+        score.textContent = entry.score.toLocaleString();
+        row.appendChild(rank); row.appendChild(name); row.appendChild(score);
+        listEl.appendChild(row);
+      });
+    });
+  }
+
+  function updateStopProgress(){
+    stopProgress.textContent = 'Signs ' + S.resolvedCount + ' / ' + REQUIRED_STOPS;
+  }
+
+  function saveLeaderboardAttempt(score, modifier){
+    var entries = getLeaderboard();
+    var categoryEntries = entries.filter(function(entry){ return entry.modifier === modifier; }).slice(0,5);
+    if (categoryEntries.length >= 5 && score < categoryEntries[categoryEntries.length-1].score) return;
+    var label = modifier === 'none' ? 'None' : modifier.charAt(0).toUpperCase()+modifier.slice(1);
+    pendingLeaderboardEntry = {score:score, modifier:modifier};
+    nameEntryPrompt.textContent = 'You made the ' + label + ' Top 5! Enter your name:';
+    leaderboardNameInput.value = '';
+    nameEntryScreen.classList.remove('hidden');
+    leaderboardNameInput.focus();
+  }
+
+  function finishLeaderboardEntry(name){
+    if (!pendingLeaderboardEntry) return;
+    var entries = getLeaderboard();
+    entries.push({
+      name:name.trim().slice(0,20),
+      score:pendingLeaderboardEntry.score,
+      date:Date.now(),
+      modifier:pendingLeaderboardEntry.modifier
+    });
+    pendingLeaderboardEntry = null;
+    entries = LEADERBOARD_MODIFIERS.reduce(function(all,key){
+      return all.concat(entries.filter(function(entry){ return entry.modifier === key; }).sort(function(a,b){ return b.score-a.score || a.date-b.date; }).slice(0,5));
+    },[]);
+    try{ localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries)); }catch(e){}
+    nameEntryScreen.classList.add('hidden');
+    renderLeaderboards();
+  }
+
+  function openLeaderboard(){
+    renderLeaderboards();
+    leaderboardScreen.classList.remove('hidden');
+    closeLeaderboardBtn.focus();
+  }
+  function closeLeaderboard(){ leaderboardScreen.classList.add('hidden'); }
+  viewLeaderboardBtns.forEach(function(button){ button.addEventListener('click',openLeaderboard); });
+  closeLeaderboardBtn.addEventListener('click',closeLeaderboard);
+  nameEntryForm.addEventListener('submit',function(event){
+    event.preventDefault();
+    var name = leaderboardNameInput.value.trim();
+    if (name) finishLeaderboardEntry(name);
+  });
+  skipNameBtn.addEventListener('click',function(){
+    pendingLeaderboardEntry = null;
+    nameEntryScreen.classList.add('hidden');
+  });
+  leaderboardScreen.addEventListener('click',function(event){
+    if (event.target === leaderboardScreen) closeLeaderboard();
+  });
 
   function getWeatherSelection(){
     return {
@@ -417,7 +576,7 @@
       running:false, over:false,
       speed:0, limit:100,
       worldScroll:0,
-      score:0, lives:3,
+      score:0, passedCount:0, resolvedCount:0,
       gas:false, brake:false,
       signs:[], decor:[], limitSigns:[],
       nextStopSpawn: 420,
@@ -512,12 +671,6 @@
     });
   }
 
-  function updateLives(){
-    for (var i=0;i<lifeEls.length;i++){
-      lifeEls[i].classList.toggle('lost', i >= S.lives);
-    }
-  }
-
   // ---------- audio (tiny synthesized beeps, no assets) ----------
   var actx = null;
   function beep(freq, dur, type, vol){
@@ -568,11 +721,14 @@
     buildWeatherParticles(S);
     toastEl.className = '';
     toastEl.textContent = '';
-    updateLives();
+    updateStopProgress();
     scoreVal.textContent = '0';
     limitVal.textContent = String(displayLimitValue(S.limit));
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
+    closeLeaderboard();
+    pendingLeaderboardEntry = null;
+    nameEntryScreen.classList.add('hidden');
     S.running = true;
     var attemptMeta = {
       attempt_number: S.attemptNumber,
@@ -594,20 +750,24 @@
     S.running = false;
     S.over = true;
     document.getElementById('overReason').textContent = reason;
+    gameOverTitle.textContent = S.resolvedCount >= REQUIRED_STOPS ? 'Drive Complete' : 'Drive Ended';
     document.getElementById('finalScore').textContent = Math.floor(S.score);
     document.getElementById('finalDist').textContent = Math.floor(S.worldScroll * 0.3048).toLocaleString()+' m';
     document.getElementById('finalPerfect').textContent = String(S.perfectCount);
     document.getElementById('finalFailed').textContent = String(S.failedCount);
+    var finalScore = Math.floor(S.score);
+    saveLeaderboardAttempt(finalScore, getModifierSummary(S.weather));
     gameOverScreen.classList.remove('hidden');
     trackGameEvent('game_end', {
       attempt_number: S.attemptNumber,
       reason: reason,
-      final_score: Math.floor(S.score),
+      final_score: finalScore,
       final_distance_m: Math.floor(S.worldScroll * 0.3048),
       perfect_stops: S.perfectCount,
       failed_stops: S.failedCount,
       modifiers: getModifierSummary(S.weather),
-      lives_left: S.lives
+      passed_stops: S.passedCount,
+      resolved_stops: S.resolvedCount
     });
   }
 
@@ -621,6 +781,13 @@
   startBtn.addEventListener('click', function(){ try{ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} startGame('start'); });
   restartBtn.addEventListener('click', function(){ startGame('restart'); });
   modifiersBtn.addEventListener('click', showStartScreen);
+  window.addEventListener('keydown',function(event){
+    if (event.key === 'Escape' && !leaderboardScreen.classList.contains('hidden')) closeLeaderboard();
+    if (event.key === 'Escape' && !nameEntryScreen.classList.contains('hidden')){
+      pendingLeaderboardEntry = null;
+      nameEntryScreen.classList.add('hidden');
+    }
+  });
 
   // ---------- update ----------
   function update(dt){
@@ -688,9 +855,9 @@
       if (distToLine <= 0){
         // line reached — must already be stopped, else it's a miss
         sg.state = 'failed';
-        st.lives -= 1;
         st.failedCount += 1;
-        updateLives();
+        st.resolvedCount += 1;
+        updateStopProgress();
         trackGameEvent('stop_sign_failed', {
           attempt_number: st.attemptNumber,
           distance_to_line_ft: distToLine,
@@ -702,9 +869,15 @@
         flashScreen();
         beep(140,0.35,'sawtooth',0.08);
         st.score = Math.max(0, st.score - 40);
-        if (st.lives <= 0){ endGame('Ran a stop sign with no lives left'); return; }
+        if (st.resolvedCount >= REQUIRED_STOPS){
+          endGame('10 stop signs reached');
+          return;
+        }
       } else if (st.speed <= STOP_EPS){
         sg.state = 'passed';
+        st.passedCount += 1;
+        st.resolvedCount += 1;
+        updateStopProgress();
         sg.stopDistFt = distToLine;
         var acc;
         if (distToLine <= 30){ acc='PERFECT STOP'; st.score += 150; st.perfectCount++; beep(880,0.12,'sine',0.07); setTimeout(function(){beep(1180,0.12,'sine',0.06);},90); }
@@ -721,6 +894,10 @@
         });
         showToast(acc + ' · ' + Math.round(distToLine * 0.3048) + ' m to spare', distToLine<=60?'good':null);
         st.nextStopSpawn = st.worldScroll + 550 + Math.random()*450;
+        if (st.resolvedCount >= REQUIRED_STOPS){
+          endGame('10 stop signs reached');
+          return;
+        }
       }
     }
     st.signs = st.signs.filter(function(s){ return (s.stopLineWorldY - st.worldScroll) > -140; });
