@@ -278,7 +278,7 @@
     <div class="dashRow1">
       <div id="limitSign">
         <div class="lbl1">Speed</div>
-        <div class="lval" id="limitVal">100</div>
+        <div class="lval" id="limitVal">60</div>
         <div class="lbl2">Limit</div>
       </div>
       <div id="speedo">
@@ -347,7 +347,8 @@
   }
 
   function displayLimitValue(limit){
-    return Math.round(limit);
+    var roundedLimit = Math.round(limit);
+    return roundedLimit === 100 ? 60 : roundedLimit;
   }
 
   // ---------- dom ----------
@@ -532,6 +533,7 @@
       worldScroll:0,
       score:0, passedCount:0, resolvedCount:0,
       gas:false, brake:false,
+      brakePressCount:0, brakeHeldSeconds:0,
       signs:[], decor:[], limitSigns:[],
       nextStopSpawn: 420,
       nextLimitSpawn: 900,
@@ -563,6 +565,9 @@
   function spawnStopSign(st){
     signId++;
     var aheadFt = 480 + Math.random()*260;
+    st.brakePressCount = 0;
+    st.brakeHeldSeconds = 0;
+    if (st.brake) st.brakePressCount = 1;
     st.signs.push({
       id:signId,
       stopLineWorldY: st.worldScroll + aheadFt,
@@ -644,6 +649,14 @@
   }
 
   // ---------- input ----------
+  function setBrake(st, pressed){
+    if (!st) return;
+    if (pressed && !st.brake){
+      st.brakePressCount += 1;
+    }
+    st.brake = pressed;
+  }
+
   function bindPedal(el, onDown, onUp){
     el.addEventListener('pointerdown', function(e){ e.preventDefault(); el.setPointerCapture&&el.setPointerCapture(e.pointerId); el.classList.add('pressed'); onDown(); });
     function release(){ el.classList.remove('pressed'); onUp(); }
@@ -652,17 +665,17 @@
     el.addEventListener('pointerleave', release);
   }
   bindPedal(gasBtn, function(){ if(S) S.gas = true; }, function(){ if(S) S.gas = false; });
-  bindPedal(brakeBtn, function(){ if(S) S.brake = true; }, function(){ if(S) S.brake = false; });
+  bindPedal(brakeBtn, function(){ setBrake(S, true); }, function(){ setBrake(S, false); });
 
   window.addEventListener('keydown', function(e){
     if (!S) return;
     if (e.code==='ArrowUp'||e.code==='KeyW'){ S.gas = true; }
-    if (e.code==='ArrowDown'||e.code==='KeyS'||e.code==='Space'){ S.brake = true; }
+    if (e.code==='ArrowDown'||e.code==='KeyS'||e.code==='Space'){ setBrake(S, true); }
   });
   window.addEventListener('keyup', function(e){
     if (!S) return;
     if (e.code==='ArrowUp'||e.code==='KeyW'){ S.gas = false; }
-    if (e.code==='ArrowDown'||e.code==='KeyS'||e.code==='Space'){ S.brake = false; }
+    if (e.code==='ArrowDown'||e.code==='KeyS'||e.code==='Space'){ setBrake(S, false); }
   });
 
   // ---------- lifecycle ----------
@@ -763,6 +776,7 @@
     }
     if (st.speed < 0) st.speed = 0;
     if (st.speed > MAX_SPEED) st.speed = MAX_SPEED;
+    if (st.brake) st.brakeHeldSeconds += dt;
 
     var ftThisFrame = worldScrollRateFtPerSec(st.speed) * dt;
     st.worldScroll += ftThisFrame * PX_PER_FT;
@@ -839,16 +853,27 @@
         updateStopProgress();
         sg.stopDistFt = distToLine;
         var acc;
-        if (distToLine <= 30){ acc='PERFECT STOP'; st.score += 150; st.perfectCount++; beep(880,0.12,'sine',0.07); setTimeout(function(){beep(1180,0.12,'sine',0.06);},90); }
-        else if (distToLine <= 60){ acc='Good stop'; st.score += 90; beep(660,0.14,'sine',0.06); }
-        else if (distToLine <= 220){ acc='Safe stop'; st.score += 45; beep(520,0.14,'sine',0.05); }
-        else { acc='Stopped early'; st.score += 15; beep(420,0.14,'sine',0.05); }
+        var stopScore;
+        var controlBonus = 0;
+        if (distToLine <= 30){ acc='PERFECT STOP'; stopScore=150; st.perfectCount++; beep(880,0.12,'sine',0.07); setTimeout(function(){beep(1180,0.12,'sine',0.06);},90); }
+        else if (distToLine <= 60){ acc='Good stop'; stopScore=90; beep(660,0.14,'sine',0.06); }
+        else if (distToLine <= 220){ acc='Safe stop'; stopScore=45; beep(520,0.14,'sine',0.05); }
+        else { acc='Stopped early'; stopScore=15; beep(420,0.14,'sine',0.05); }
+
+        if (st.brakePressCount === 1 && st.brakeHeldSeconds >= 0.75){
+          controlBonus = 50;
+          acc += ' · Smooth';
+        }
+        st.score = Math.max(0, st.score + stopScore + controlBonus);
         trackGameEvent('stop_sign_passed', {
           attempt_number: st.attemptNumber,
           stop_quality: acc,
           distance_to_line_ft: distToLine,
           distance_to_line_m: Math.round(distToLine * 0.3048),
           speed_kph: Math.round(st.speed),
+          brake_press_count: st.brakePressCount,
+          brake_held_seconds: Math.round(st.brakeHeldSeconds * 10) / 10,
+          control_bonus: controlBonus,
           modifiers: getModifierSummary(st.weather)
         });
         showToast(acc + ' · ' + Math.round(distToLine * 0.3048) + ' m to spare', distToLine<=60?'good':null);
